@@ -3,6 +3,8 @@ from OpenGL_2D_class_GLFW import gl2D, gl2DCircle, gl2DText,gl2DArrow,gl2DArc
 from ghedesigner.ghe.runner_code import read_data_from_json_file
 import time
 
+# we are inside the 2-pipe branch
+
 System = GHEHPSystem()
 
 start_time = time.time()

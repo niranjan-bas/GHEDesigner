@@ -376,7 +376,6 @@ class Zone:
 
         return self.mass_flow_zone
 
-
     def calculate_r1_r2(self, t_eft, hour_index):
         """
         Calculate r1 and r2 for this zone based on entering fluid temperature and HP coefficients.

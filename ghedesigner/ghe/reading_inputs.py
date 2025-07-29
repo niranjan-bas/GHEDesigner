@@ -14,7 +14,7 @@ def AnimationCallback(frame, nframes):
     # these could be done here or by calling a class method
     System.current_frame = (frame + 1) * 145
 def main():
-    f1 = open("3ghe-6hp_layout_input file.txt", 'r')  # open the file for reading     # "3ghe-6hp_layout_input file.txt"
+    f1 = open("3ghe-6hp_system.txt", 'r')  # open the file for reading     # "3ghe-6hp_system.txt"
     data = f1.readlines()  # read the entire file as a list of strings
     f1.close()  # close the file  ... very important
 

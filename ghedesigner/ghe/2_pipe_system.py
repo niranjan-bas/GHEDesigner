@@ -4,6 +4,12 @@ from OpenGL.GL import *
 from OpenGL_2D_class_GLFW import gl2D, gl2DCircle, gl2DText,gl2DArrow,gl2DArc
 from HersheyFont import HersheyFont
 hf = HersheyFont()
+import os
+
+# Define filename
+
+file_path = "2-pipe_2ghx-3hp_system.txt"
+file_name = os.path.splitext(os.path.basename(file_path))[0]  # Removes .txt
 
 class GHX:
     def __init__(self):
@@ -192,8 +198,8 @@ class GHEHPSystem:
         for zone in zones:
             glBegin(GL_LINE_LOOP)  # begin drawing connected lines
             glVertex2f(zone.input.x, zone.input.y + 2)
-            glVertex2f(zone.output.x, zone.output.y + 2)
-            glVertex2f(zone.output.x, zone.output.y - 2)
+            glVertex2f(zone.input.x+10, zone.input.y + 2)
+            glVertex2f(zone.input.x+10, zone.input.y - 2)
             glVertex2f(zone.input.x, zone.input.y - 2)
             glEnd()
 
@@ -203,10 +209,10 @@ class GHEHPSystem:
 
         for GHX in GHXs:
             glBegin(GL_LINE_LOOP)  # begin drawing connected lines
-            glVertex2f(GHX.input.x - 2, GHX.input.y)
-            glVertex2f(GHX.output.x - 2, GHX.output.y)
-            glVertex2f(GHX.output.x + 2, GHX.output.y)
-            glVertex2f(GHX.input.x + 2, GHX.input.y)
+            glVertex2f(GHX.input.x, GHX.input.y - 2)
+            glVertex2f(GHX.input.x - 10, GHX.input.y - 2)
+            glVertex2f(GHX.input.x - 10, GHX.input.y + 2)
+            glVertex2f(GHX.input.x, GHX.input.y+2)
             glEnd()
 
         # Drawing pipes
@@ -249,7 +255,7 @@ class GHEHPSystem:
         # Writing text
         glColor3f(1, 1, 1)
         glLineWidth(3)
-        hf.drawText("2 pipe_2ghx-3hp System", 35, -5, scale=2.5, slant=0, angle=0, center=True)
+        hf.drawText(file_name, 35, -5, scale=2.5, slant=0, angle=0, center=True)
 
 def FindItemByID(ID, objectlist):
     # search a list of objects to find one with a particular name
@@ -261,7 +267,7 @@ def FindItemByID(ID, objectlist):
     return None  # couldn't find it
 
 def main():
-    f1 = open("2-pipe_2ghx-3hp_input.txt", 'r')  # open the file for reading
+    f1 = open(file_path, 'r')  # open the file for reading
     data = f1.readlines()  # read the entire file as a list of strings
     f1.close()  # close the file  ... very important
 
@@ -270,7 +276,7 @@ def main():
 
     # Draw the system network, set the window width and height
     gl2d = gl2D(None, System.drawnetwork, width=2000, height=1500)
-    gl2d.setViewSize(-10, 80, -10, 60, False)
+    gl2d.setViewSize(-10, 80, -10, 80, False)
     gl2d.glWait()  # wait for the user to close the window
 
     print("Finished drawing 1")

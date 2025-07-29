@@ -32,7 +32,7 @@ class main_window(QDialog):
 
         #   !!!!!!!!! this is the third of three custom lines in this file!!!!!!
         # Allow a file to be opened and displayed on program startup
-        self.defaultFilename = "3ghe-6hp_layout_input file.txt"  # Could be None
+        self.defaultFilename = "3ghe-6hp_system.txt"  # Could be None
 
 
         self.myAnimator = None  # a new Animator instance will be created each time a file is read

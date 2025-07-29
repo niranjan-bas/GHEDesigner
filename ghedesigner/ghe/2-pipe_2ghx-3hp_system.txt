@@ -18,40 +18,37 @@ Zone,       space_htg/clg,  b2z1,   2-pipe,    n10,         n11,           HP3, 
 
 
 #  keyword,  id,     type,    node_in_ID,    node_out_ID,   n_rows,   n_cols,   row_spacing (m),  col_spacing (m),   beta     height     m_flow_ghe_design
-GHX,         ghx1,   2-pipe,  n18,           n20,           15,       10,       5,                5, 	           1.5,     100,       50.63
-GHX,         ghx2,   2-pipe,  n19,           n21,           10,       10,       5,                5,                 1.5,     100,       27
+GHX,         ghx1,   2-pipe,  n16,           n17,           15,       10,       5,                5, 	           1.5,     100,       50.63
+GHX,         ghx2,   2-pipe,  n20,           n21,           10,       10,       5,                5,                 1.5,     100,       27
 
 
 #nodes data
 
 # keyword, id,   type,        x,    y,   z
-node,      n1,   splitting,   40,   40,  0
-node,      n2,   device_in,   50,   40,  0
-node,      n3,   device_out,  60,   40,  0
-node,      n4,   simple,      70,   40,  0
-node,      n5,   splitting,   40,   30,  0
-node,      n6,   device_in,   50,   30,  0
-node,      n7,   device_out,  60,   30,  0
-node,      n8,   combining,   70,   30,  0
-node,      n9,    simple,     40,   20,  0
-node,      n10,  device_in,   50,   20,  0
-node,      n11,  device_out,  60,   20,  0
-node,      n12,  combining,   70,   20,  0
-node,      n13,  simple,      70,    0,  0
-node,      n14,  simple,      10,    0,  0
-node,      n15,  splitting,   10,   10,  0
-node,      n16,  simple,      0,    10,  0
-node,      n17,  simple,      20,   10,  0
-node,      n18,  device_in,   0,    20,  0
-node,      n19,  device_in,   20,   20,  0
-node,      n20,  device_out,  0,    30,  0
-node,      n21,  device_out,  20,   30,  0
-node,      n22,  simple,      0,    40,  0
-node,      n23,  simple,      20,   40,  0
-node,      n24,  combining,   10,   40,  0
-node,      n25,  simple,      10,   50,  0
-node,      n26,  simple,      40,   50,  0
-
+node,      n1,   splitting,   50,   30,  0
+node,      n2,   device_in,   60,   30,  0
+node,      n3,   device_out,  70,   30,  0
+node,      n4,   simple,      80,   30,  0
+node,      n5,   splitting,   50,   20,  0
+node,      n6,   device_in,   60,   20,  0
+node,      n7,   device_out,  70,   20,  0
+node,      n8,   combining,   80,   20,  0
+node,      n9,    simple,     50,   10,  0
+node,      n10,  device_in,   60,   10,  0
+node,      n11,  device_out,  70,   10,  0
+node,      n12,  combining,   80,   10,  0
+node,      n13,  simple,      80,    0,  0
+node,      n14,  simple,      30,    0,  0
+node,      n15,  splitting,   30,   10,  0
+node,      n16,  device_in,   20,   10,  0
+node,      n17,  device_out,  10,   10,  0
+node,      n18,  simple,      0,    10,  0
+node,      n19,  simple,     30,    30,  0
+node,      n20,  device_in,  20,    30,  0
+node,      n21,  device_out, 10,    30,  0
+node,      n22,  combining,  0,     30,  0
+node,      n23,  simple,     0,     40,  0
+node,      n24,  simple,     50,    40,  0
 
 # Pipes Data
 
@@ -67,20 +64,17 @@ pipe,      p8,   1way,      n8,             n12,              10
 pipe,      p9,   1way,      n9,             n10,              10
 pipe,      p10,  1way,      n11,            n12,              10
 pipe,      p11,  1way,      n12,            n13,              10
-pipe,      p12,  1way,      n13,            n14,              60
+pipe,      p12,  1way,      n13,            n14,              50
 pipe,      p13,  1way,      n14,            n15,              10
 pipe,      p14,  1way,      n15,            n16,              10
-pipe,      p15,  1way,      n15,            n17,              10
-pipe,      p16,  1way,      n16,            n18,              10
-pipe,      p17,  1way,      n17,            n19,              10
-pipe,      p18,  1way,      n20,            n22,              10
-pipe,      p19,  1way,      n21,            n23,              10
-pipe,      p20,  1way,      n22,            n24,              10
-pipe,      p21,  1way,      n23,            n24,              10
-pipe,      p22,  1way,      n24,            n25,              10
-pipe,      p23,  1way,      n25,            n26,              30
-pipe,      p24,  1way,      n26,            n1,               10
-
+pipe,      p15,  1way,      n17,            n18,              10
+pipe,      p16,  1way,      n15,            n19,              20
+pipe,      p17,  1way,      n18,            n22,              20
+pipe,      p18,  1way,      n19,            n20,              10
+pipe,      p19,  1way,      n21,            n22,              10
+pipe,      p20,  1way,      n22,            n23,              10
+pipe,      p21,  1way,      n23,            n24,              50
+pipe,      p22,  1way,      n24,            n1,               30
 
 # keyword, name,   id,   a_htg,     b_htg,   c_htg, a_clg,   b_clg,   c_clg, c1_htg, c2_htg, c3_htg, c1_clg,  c2_clg, c3_clg, m_single_hp, design_htg_cap, design_clg_cap
 HPmodel,   HP_AtW, HP1, -0.0000713, 0.00534, 0.734, 0.0001,  0.00112, 1.13, -0.124,  112,    4114,  -0.393,  -30.3,   6777,   0.296,       4140,           4396

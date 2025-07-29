@@ -6,6 +6,7 @@ from pygfunction.boreholes import Borehole
 from ghedesigner.ghe.simulation import SimulationParameters
 from ghedesigner.ghe.multiple_ghe_hp_addition import MultiGHEHP
 from ghedesigner.ghe.gfunction import calc_g_func_for_multiple_lengths
+
 import time
 
 # ✅ Start timing before simulation setup

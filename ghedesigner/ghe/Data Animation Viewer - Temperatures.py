@@ -18,7 +18,6 @@ from District_system_class import GHEHPSystem
 from ghedesigner.ghe.runner_code import read_data_from_json_file
 import time
 
-
 class main_window(QDialog):
     def __init__(self):
         super(main_window, self).__init__()

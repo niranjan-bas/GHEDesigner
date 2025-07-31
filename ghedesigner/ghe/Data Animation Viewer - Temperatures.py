@@ -15,7 +15,7 @@ from DataAnimation_ui import Ui_Dialog
 # !!!!!!!!! this is the first of three custom lines in this file!!!!!!
 from District_system_class import GHEHPSystem
 
-from ghedesigner.ghe.runner_code import read_data_from_json_file
+from ghedesigner.ghe.run_simulation import read_data_from_json_file
 import time
 
 class main_window(QDialog):

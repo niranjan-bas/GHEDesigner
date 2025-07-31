@@ -96,7 +96,8 @@ def main():
     print("Finished drawing 1")
 
 
-main()
+if __name__ == "__main__":
+    main()
 
 end_time = time.time()
 print(f"Simulation completed in {end_time - start_time:.2f} seconds.")

@@ -621,6 +621,12 @@ class GHEHPSystem:
         # Step 3: Create and save DataFrame
         self.df = pd.DataFrame(data_rows, columns=column_names)
         self.df.index.name = "Hour"
+
+        # Drop timestep 0 and reindex starting from 1
+        self.df = self.df.iloc[1:]
+        self.df.index = range(1, len(self.df) + 1)
+
+        # Save to CSV
         self.df.to_csv("output_results.csv")
 
     def UpdateConnections(self):

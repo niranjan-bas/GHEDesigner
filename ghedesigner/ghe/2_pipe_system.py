@@ -8,7 +8,7 @@ import os
 
 # Define filename
 
-file_path = "3ghe-6hp_system.txt"
+file_path = "2-pipe_2ghx-3hp_system.txt"
 file_name = os.path.splitext(os.path.basename(file_path))[0]  # Removes .txt
 
 class GHX:

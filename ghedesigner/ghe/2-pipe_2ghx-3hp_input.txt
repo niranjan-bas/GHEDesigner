@@ -5,7 +5,7 @@ Title '2 pipe-2ghe-3hp system'
 # Building data
 
 # keyword,     name,                 id,     zoneID
-Building,      Hospital, 	     B1,      b1z1
+Building,      Hospital, 	         B1,      b1z1
 Building,      Midriseapartment,     B2,      b2z1
 Building,      Mediumoffice,         B3,      b3z1
 

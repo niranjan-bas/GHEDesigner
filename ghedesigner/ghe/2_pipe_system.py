@@ -261,7 +261,7 @@ def FindItemByID(ID, objectlist):
     return None  # couldn't find it
 
 def main():
-    f1 = open("2-pipe_2ghx-3hp_input.txt", 'r')  # open the file for reading
+    f1 = open("2-pipe_2ghx-3hp_system_input.txt", 'r')  # open the file for reading
     data = f1.readlines()  # read the entire file as a list of strings
     f1.close()  # close the file  ... very important
 

@@ -13,19 +13,19 @@ Building, Mediumoffice,     B3, b3z1, b3z2
 
 # Zone data
 
-# keyword, name,          id,   nodeID,  HPmodel, loads_file,   beta
-Zone,      space_htg/clg, b1z1, n2,       HP1,     B1Z1.csv,    1.5
-Zone,      space_htg/clg, b1z2, n4,       HP4,     B1Z2.csv,    1.5
-Zone,      space_htg/clg, b2z1, n6,       HP2,     B2Z1.csv,    1.5
-Zone,      water_htg,     b2z2, n8,       HP4,     B2Z2.csv,    1.5
-Zone,      water_htg,     b3z1, n10,      HP3,     B3Z1.csv,    1.5
-Zone,      water_htg,     b3z2, n12,      HP4,     B3Z2.csv,    1.5
+# keyword, name,          id,   nodeID,  HPmodel, loads_file
+Zone,      space_htg/clg, b1z1, n2,       HP1,     B1Z1.csv
+Zone,      space_htg/clg, b1z2, n4,       HP4,     B1Z2.csv
+Zone,      space_htg/clg, b2z1, n6,       HP2,     B2Z1.csv
+Zone,      water_htg,     b2z2, n8,       HP4,     B2Z2.csv
+Zone,      water_htg,     b3z1, n10,      HP3,     B3Z1.csv
+Zone,      water_htg,     b3z2, n12,      HP4,     B3Z2.csv
 
 
-#  keyword, id,   nodeID, n_rows, n_cols, row_spacing (m), col_spacing (m), beta  	    height     m_flow_ghe_design
-GHX,        ghe1, n16,    15,     10,     5,               5, 		         1.5,       100,       50.63
-GHX,        ghe2, n18,    10,     8,      5,               5,               1.5,        100,       27
-GHX,        ghe3, n20,    10,     7,      5,               5,               1.5,        100,       23.63
+#  keyword, id,   nodeID, n_rows, n_cols, row_spacing (m), col_spacing (m),  height     m_flow_ghe_design
+GHX,        ghe1, n16,    15,     10,     5,               5, 		         100,       50.63
+GHX,        ghe2, n18,    10,     8,      5,               5,                100,       27
+GHX,        ghe3, n20,    10,     7,      5,               5,                100,       23.63
 
 
 # nodes data
@@ -88,8 +88,10 @@ HPmodel,   HP_AtW, HP2, -0.0000786, 0.00539, 0.734, 0.0001, -0.00041, 1.15,  0.1
 HPmodel,   HP_AtW, HP3, -0.000068, 0.00497,  0.738, 0.0001, -0.00084, 1.16,  0.091,  224,    9422,  -2.16,    46.8,   12397,  0.693,       9500,           9752
 HPmodel,   HP_WtW, HP4, -0.0000606, 0.0051,  0.692, 0,       0,       0,    -1.19,   212,    8932,   0,       0,      0,      0.425,       9561,           0
 
+# System constants
 
-
+# keyword, value
+beta,      1.5
 
 
 

@@ -25,7 +25,6 @@ class GHX:
         self.n_cols = None
         self.row_spacing = None
         self.col_spacing = None
-        self.beta = None
         self.nbh = None
         self.height = None
         self.upstream_device = None
@@ -358,6 +357,7 @@ class GHEHPSystem:
         self.bhe_eq = None
         self.c_n = None
         self.m_loop = None
+        self.beta = None
 
         self.df = None
         self.current_frame = 0
@@ -380,7 +380,9 @@ class GHEHPSystem:
     def DrawPicture(self):
         self.drawnetwork()
     def PrepareNextAnimationFrameData(self, thisFrame, nframes):
-        self.current_frame = (thisFrame + 1) * 145
+
+        #self.current_frame = (thisFrame + 1) * 145
+        self.current_frame = (thisFrame) * 146
     def ProcessFileData(self, data):
         self.read_GHEHPSystem_data(data)
 
@@ -402,9 +404,8 @@ class GHEHPSystem:
                 thisghx.n_cols = float(cells[4])
                 thisghx.row_spacing = float(cells[5])
                 thisghx.col_spacing = float(cells[6])
-                thisghx.beta = float(cells[7])
-                thisghx.ghe_height = float(cells[8])
-                thisghx.mass_flow_ghe_design = float(cells[9])
+                thisghx.ghe_height = float(cells[7])
+                thisghx.mass_flow_ghe_design = float(cells[8])
                 thisghx.matrix_line = next_matrix_line
                 next_matrix_line += 4
                 self.GHXs.append(thisghx)
@@ -427,7 +428,6 @@ class GHEHPSystem:
                 thiszone.nodeID = str(cells[3])
                 thiszone.HPmodel = str(cells[4])
                 thiszone.loads_file = pd.read_csv(cells[5])
-                thiszone.beta = float(cells[6])
                 thiszone.matrix_line = next_matrix_line
                 next_matrix_line += 1
                 self.zones.append(thiszone)
@@ -468,6 +468,9 @@ class GHEHPSystem:
                 thishpmodel.m_design_clg_cap = float(cells[17])
                 self.HPmodels.append(thishpmodel)
 
+            if keyword == "beta":
+                self.beta = float(cells[1])
+
         # end for line
         self.UpdateConnections()
 
@@ -478,8 +481,6 @@ class GHEHPSystem:
         n_timesteps = self.time_array_size
         matrix_size = 4 * len(self.GHXs) + len(self.zones)
         self.log_time = np.linspace(-10, 4, 25).tolist()
-        self.beta = 1.5  # default assumed value
-
         nbh_total = sum(GHX.n_rows * GHX.n_cols for GHX in self.GHXs)
         self.nbh_total = nbh_total
 
@@ -703,7 +704,7 @@ class GHEHPSystem:
         self.ymax = 80
         self.allowDistortion = False
 
-        self.numberOfAnimationFrames = 59
+        self.numberOfAnimationFrames = 60 #59
         self.AnimDelayTime  = 0.1
         self.AnimReverse = False
         self.AnimRepeat = False

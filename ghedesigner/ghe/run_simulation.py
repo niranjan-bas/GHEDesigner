@@ -64,7 +64,8 @@ def read_data_from_json_file():
 def AnimationCallback(frame, nframes):
     # calculations needed to configure the picture
     # these could be done here or by calling a class method
-    System.current_frame = (frame + 1) * 145
+    #System.current_frame = (frame + 1) * 146
+    System.current_frame = (frame) * 146
 
 
 def main():
@@ -77,7 +78,7 @@ def main():
     fluid, pipe, grout, soil, borehole, sim_params = read_data_from_json_file()
     System.solveSystem(fluid, pipe, grout, soil, borehole, sim_params)
     System.createOutput()
-    System.current_frame = 1
+    System.current_frame = 0
 
     # Draw the house, set the window width and height
     gl2d = gl2D(None, System.drawnetwork, width=2000, height=1500)
@@ -87,7 +88,7 @@ def main():
     # Draw the house, set the window width and height
     gl2d = gl2D(None, System.drawnetwork, width=2000, height=1500)
     gl2d.setViewSize(-10, 50, -10, 80, False)
-    nframes = 59
+    nframes = 60  #59
     gl2d.glStartAnimation(AnimationCallback, nframes, delaytime=0.1,
                           reverse=False, repeat=False, reset=False)
 

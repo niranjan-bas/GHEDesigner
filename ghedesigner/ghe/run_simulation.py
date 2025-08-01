@@ -68,7 +68,7 @@ def AnimationCallback(frame, nframes):
 
 
 def main():
-    f1 = open("1-pipe_3ghe-6hp_system_input.txt", 'r')  # open the file for reading     # "1-pipe_3ghe-6hp_system_input.txt"
+    f1 = open("1-pipe_3ghe-6hp_system_input.txt", 'r')
     data = f1.readlines()  # read the entire file as a list of strings
     f1.close()  # close the file  ... very important
 

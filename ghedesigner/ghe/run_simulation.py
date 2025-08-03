@@ -1,64 +1,11 @@
-from ghedesigner.ghe.simulation import SimulationParameters
-from ghedesigner.media import Soil, Grout, Pipe, GHEFluid
-from pygfunction.boreholes import Borehole
-
 from District_system_class import GHEHPSystem
 from OpenGL_2D_class_GLFW import gl2D
-
-import json
 
 import time
 
 start_time = time.time()
 
 System = GHEHPSystem()
-
-
-def read_data_from_json_file():
-    with open("find_design_bi_rectangle_single_u_tube.json", 'r') as f:
-        data = json.load(f)
-
-    # Extract input values
-    fluid_data = data["fluid"]
-    soil_data = data["ground-heat-exchanger"]["ghe1"]["soil"]
-    grout_data = data["ground-heat-exchanger"]["ghe1"]["grout"]
-    pipe_data = data["ground-heat-exchanger"]["ghe1"]["pipe"]
-    borehole_data = data["ground-heat-exchanger"]["ghe1"]["borehole"]
-    geometric_data = data["ground-heat-exchanger"]["ghe1"]["geometric_constraints"]
-
-    # Construct objects
-    fluid = (
-        GHEFluid(
-        fluid_data["fluid_name"],
-        fluid_data["concentration_percent"],
-        fluid_data["temperature"]
-    ))
-    # Pipe object (Single U-tube)
-    r_in = pipe_data["inner_diameter"] / 2.0
-    r_out = pipe_data["outer_diameter"] / 2.0
-    s = pipe_data["shank_spacing"]
-
-    pipe_positions = Pipe.place_pipes(s, r_out, 1)
-
-    pipe = Pipe(
-        pipe_positions,
-        r_in,
-        r_out,
-        s,
-        pipe_data["roughness"],
-        pipe_data["conductivity"],
-        pipe_data["rho_cp"]
-    )
-
-    soil = Soil(soil_data["conductivity"], soil_data["rho_cp"], soil_data["undisturbed_temp"])
-    grout = Grout(grout_data["conductivity"], grout_data["rho_cp"])
-    borehole = Borehole(100.0, borehole_data["buried_depth"], borehole_data["diameter"] / 2.0, 0.0, 0.0)
-
-    # Simulation parameters
-    sim_params = SimulationParameters(num_months=12)
-    sim_params.set_design_heights(geometric_data["max_height"], geometric_data["min_height"])
-
-    return fluid, pipe, grout, soil, borehole, sim_params
 
 
 def AnimationCallback(frame, nframes):
@@ -75,7 +22,7 @@ def main():
 
     System.read_GHEHPSystem_data(data)
 
-    fluid, pipe, grout, soil, borehole, sim_params = read_data_from_json_file()
+    fluid, pipe, grout, soil, borehole, sim_params = System.read_data_from_json_file()
     System.solveSystem(fluid, pipe, grout, soil, borehole, sim_params)
     System.createOutput()
     System.current_frame = 0

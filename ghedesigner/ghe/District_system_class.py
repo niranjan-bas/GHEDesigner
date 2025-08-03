@@ -1,10 +1,11 @@
 import pandas as pd
 import numpy as np
-
-from ghedesigner.media import Grout, Pipe, Soil
+from ghedesigner.media import Grout, Soil, GHEFluid
+from ghedesigner.media import Pipe as MediaPipe   # I am importing Pipe from media as MediaPipe to avoid name conflict with my Pipe class
 from pygfunction.boreholes import Borehole
 from ghedesigner.ghe.coaxial_borehole import get_bhe_object
 from ghedesigner.ghe.gfunction import calc_g_func_for_multiple_lengths
+from ghedesigner.ghe.simulation import SimulationParameters
 from ghedesigner.enums import BHPipeType, TimestepType
 from ghedesigner.ghe.gfunction import GFunction, calc_g_func_for_multiple_lengths
 from ghedesigner.ghe.ground_heat_exchangers import BaseGHE
@@ -13,6 +14,8 @@ from OpenGL.GL import *
 from OpenGL_2D_class_GLFW import gl2D, gl2DCircle, gl2DText,gl2DArrow, gl2DArc
 from HersheyFont import HersheyFont
 hf = HersheyFont()
+
+import json
 
 
 class GHX:
@@ -361,6 +364,7 @@ class GHEHPSystem:
 
         self.df = None
         self.current_frame = 0
+        self.data = None
 
     # Additions after this are made for animation
         self.xmin = -10
@@ -394,7 +398,6 @@ class GHEHPSystem:
 
             if keyword == 'title':
                 self.title = cells[1].replace("'", "")
-
 
             if keyword == 'ghx':
                 thisghx = GHX()
@@ -473,6 +476,52 @@ class GHEHPSystem:
 
         # end for line
         self.UpdateConnections()
+
+    def read_data_from_json_file(self):
+        with open("find_design_bi_rectangle_single_u_tube.json", 'r') as f:
+            self.data = json.load(f)
+
+        # Extract input values
+        fluid_data = self.data["fluid"]
+        soil_data = self.data["ground-heat-exchanger"]["ghe1"]["soil"]
+        grout_data = self.data["ground-heat-exchanger"]["ghe1"]["grout"]
+        pipe_data = self.data["ground-heat-exchanger"]["ghe1"]["pipe"]
+        borehole_data = self.data["ground-heat-exchanger"]["ghe1"]["borehole"]
+        geometric_data = self.data["ground-heat-exchanger"]["ghe1"]["geometric_constraints"]
+
+        # Construct objects
+        fluid = (
+            GHEFluid(
+                fluid_data["fluid_name"],
+                fluid_data["concentration_percent"],
+                fluid_data["temperature"]
+            ))
+        # Pipe object (Single U-tube)
+        r_in = pipe_data["inner_diameter"] / 2.0
+        r_out = pipe_data["outer_diameter"] / 2.0
+        s = pipe_data["shank_spacing"]
+
+        pipe_positions = MediaPipe.place_pipes(s, r_out, 1)
+
+        pipe = MediaPipe(
+            pipe_positions,
+            r_in,
+            r_out,
+            s,
+            pipe_data["roughness"],
+            pipe_data["conductivity"],
+            pipe_data["rho_cp"]
+        )
+
+        soil = Soil(soil_data["conductivity"], soil_data["rho_cp"], soil_data["undisturbed_temp"])
+        grout = Grout(grout_data["conductivity"], grout_data["rho_cp"])
+        borehole = Borehole(100.0, borehole_data["buried_depth"], borehole_data["diameter"] / 2.0, 0.0, 0.0)
+
+        # Simulation parameters
+        sim_params = SimulationParameters(num_months=12)
+        sim_params.set_design_heights(geometric_data["max_height"], geometric_data["min_height"])
+
+        return fluid, pipe, grout, soil, borehole, sim_params
 
     def solveSystem(self, fluid, pipe, grout, soil, borehole, sim_params):
         # precompute all time invariant constants

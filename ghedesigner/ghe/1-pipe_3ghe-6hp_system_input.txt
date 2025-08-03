@@ -13,7 +13,7 @@ Building, Mediumoffice,     B3, b3z1, b3z2
 
 # Zone data
 
-# keyword, name,          id,   nodeID,  HPmodel, loads_file
+# keyword, name,          id,   nodeID,   HPmodel, loads_file
 Zone,      space_htg/clg, b1z1, n2,       HP1,     B1Z1.csv
 Zone,      space_htg/clg, b1z2, n4,       HP4,     B1Z2.csv
 Zone,      space_htg/clg, b2z1, n6,       HP2,     B2Z1.csv
@@ -56,29 +56,29 @@ node,     n22,   simple, 30,  70, 0
 
 # Pipes Data
 
-# keyword, id,   type       node_in_name    node_out_name,    length
-pipe,      p1,   2way,      n1,             n2,               10
-pipe,      p2,   1way,      n1,             n3,               10
+# keyword, id,   type        node_in_name    node_out_name,    length
+pipe,      p1,   2way,       n1,             n2,               10
+pipe,      p2,   1way,       n1,             n3,               10
 pipe,      p3,   2way,       n3,             n4,               10
-pipe,      p4,   1way,     n3,             n5,               10
+pipe,      p4,   1way,       n3,             n5,               10
 pipe,      p5,   2way,       n5,             n6,               10
-pipe,      p6,   1way,     n5,             n7,               10
+pipe,      p6,   1way,       n5,             n7,               10
 pipe,      p7,   2way,       n7,             n8,               10
-pipe,      p8,   1way,     n7,             n9,               10
+pipe,      p8,   1way,       n7,             n9,               10
 pipe,      p9,   2way,       n9,             n10,              10
-pipe,      p10,  1way,     n9,             n11,              10
+pipe,      p10,  1way,       n9,             n11,              10
 pipe,      p11,  2way,       n11,            n12,              10
-pipe,      p12,  1way,     n11,            n13,              10
-pipe,      p13,  1way,     n13,            n14,              20
-pipe,      p14,  1way,     n14,            n15,              30
+pipe,      p12,  1way,       n11,            n13,              10
+pipe,      p13,  1way,       n13,            n14,              20
+pipe,      p14,  1way,       n14,            n15,              30
 pipe,      p15,  2way,       n15,            n16,              10
-pipe,      p16,  1way,     n15,            n17,              10
+pipe,      p16,  1way,       n15,            n17,              10
 pipe,      p17,  2way,       n17,            n18,              10
-pipe,      p18,  1way,     n17,            n19,              10
+pipe,      p18,  1way,       n17,            n19,              10
 pipe,      p19,  2way,       n19,            n20,              10
-pipe,      p20,  1way,     n19,            n21,              20
-pipe,      p21,  1way,     n21,            n22,              20
-pipe,      p22,  1way,     n22,            n1,               10
+pipe,      p20,  1way,       n19,            n21,              20
+pipe,      p21,  1way,       n21,            n22,              20
+pipe,      p22,  1way,       n22,            n1,               10
 
 # Heat Pump Model Library
 

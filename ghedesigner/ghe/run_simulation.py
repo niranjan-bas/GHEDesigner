@@ -16,7 +16,7 @@ def AnimationCallback(frame, nframes):
 
 
 def main():
-    f1 = open("1-pipe_3ghe-6hp_system_input.txt", 'r')
+    f1 = open("1-pipe_3ghe-6hp_system_w_pumping_station_input.txt", 'r')
     data = f1.readlines()  # read the entire file as a list of strings
     f1.close()  # close the file  ... very important
 
@@ -27,12 +27,12 @@ def main():
     System.createOutput()
     System.current_frame = 0
 
-    # Draw the house, set the window width and height
+    # Draw
     gl2d = gl2D(None, System.drawnetwork, width=2000, height=1500)
     gl2d.setViewSize(-10, 50, -10, 80, False)
     gl2d.glWait()  # wait for the user to close the window
 
-    # Draw the house, set the window width and height
+    # Draw
     gl2d = gl2D(None, System.drawnetwork, width=2000, height=1500)
     gl2d.setViewSize(-10, 50, -10, 80, False)
     nframes = 60  #59

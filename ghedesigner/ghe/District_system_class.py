@@ -328,6 +328,17 @@ class HPmodel:
         self.design_clg_cap = None
 
 
+class Isolation_HX:
+    def __init__(self):
+        self.name = None
+        self.ID = None
+        self.node_network_inlet_ID = None
+        self.node_network_outlet_ID = None
+        self.node_HP_inlet_ID = None
+        self.node_HP_outlet_ID = None
+        self.zoneID = None
+
+
 class GHEHPSystem:
     def __init__(self):
         self.title = None
@@ -435,6 +446,15 @@ class GHEHPSystem:
                 next_matrix_line += 1
                 self.zones.append(thiszone)
 
+            if keyword == 'ishx':
+                thisishx = Isolation_HX()
+                thisishx.name = str(cells[1])
+                thisishx.ID = str(cells[2])
+                thisishx.node_network_inlet_ID = str(cells[3])
+                thisishx.node_network_outlet_ID = str(cells[4])
+                thisishx.node_HP_inlet_ID = str(cells[5])
+                thisishx.node_HP_outlet_ID = str(cells[6])
+                thisishx.node_zoneIDs = ([zones.strip() for zones in cells[7:]])
 
             if keyword == 'node':
                 thisnode = Node()

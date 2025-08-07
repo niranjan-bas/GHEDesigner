@@ -1,0 +1,126 @@
+# This is an input file for simulation of multiple GHE-HP system with pumping station
+
+Title, '3ghe-6hp system_w_pumping_station'
+# Ground heat exchanger data
+
+# Building Data
+
+# keyword, name,            id, zoneID
+Building, Hospital, 	    B1, b1z1, b1z2
+Building, Midriseapartment, B2, b2z1, b2z2
+Building, Mediumoffice,     B3, b3z1, b3z2
+
+
+# Zone data
+
+# keyword, name,          id,     nodeID,   HPmodel,  loads_file
+Zone,      space_htg/clg, b1z1,   n6,       HP1,      B1Z1.csv
+Zone,      space_htg/clg, b1z2,   n8,       HP4,      B1Z2.csv
+Zone,      space_htg/clg, b2z1,   n14,      HP2,      B2Z1.csv
+Zone,      water_htg,     b2z2,   n16,      HP4,      B2Z2.csv
+Zone,      water_htg,     b3z1,   n18,      HP3,      B3Z1.csv
+Zone,      water_htg,     b3z2,   n20,      HP4,      B3Z2.csv
+
+
+#  keyword, id,   nodeID, n_rows, n_cols, row_spacing (m), col_spacing (m),  height     m_flow_ghe_design
+GHX,        ghe1, n24,    15,     10,     5,               5, 		         100,       50.63
+GHX,        ghe2, n26,    10,     8,      5,               5,                100,       27
+GHX,        ghe3, n28,    10,     7,      5,               5,                100,       23.63
+
+
+# keyword,   name,          id,     node_network_inlet_ID, node_network_outlet_ID,   node_HP_inlet_ID,   node_HP_outlet_ID,   zoneID
+ISHX,        counter_flow,   ishx1,   n2,                     n11,                       n10,                 n3,                   b1z1, b1z2
+
+
+# nodes data
+# keyword, id,   type,   x,   y,  z
+node,      n1,   mixing, 30,  80, 0
+node,      n2,   device, 40,  80, 0
+node,      n3,   device, 50,  80, 0
+node,      n4,   simple, 60,  80, 0
+node,      n5,   mixing, 60,  70, 0
+node,      n6,   device, 70,  70, 0
+node,      n7,   mixing, 60,  60, 0
+node,      n8,   device, 70,  60, 0
+node,      n9,   simple, 60,  50, 0
+node,     n10,   device, 50,  50, 0
+node,     n11,   device, 40,  50, 0
+node,     n12,   mixing, 30,  50, 0
+node,     n13,   mixing, 30,  40,  0
+node,     n14,   device, 40,  40,  0
+node,     n15,   mixing, 30,  30, 0
+node,     n16,   device, 40,  30, 0
+node,     n17,   mixing, 30,  20, 0
+node,     n18,   device, 40,  20, 0
+node,     n19,   mixing, 30,  10, 0
+node,     n20,   device, 40,  10, 0
+node,     n21,   simple, 30,  0, 0
+node,     n22,   simple, 10,  0, 0
+node,     n23,   mixing, 10,  25,  0
+node,     n24,   device, 0,   25,  0
+node,     n25,   mixing, 10,   45,  0
+node,     n26,   device, 0,   45,  0
+node,     n27,   mixing, 10,   65,  0
+node,     n28,   device, 0,   65,  0
+node,     n29,   simple, 10,   90,  0
+node,     n30,   simple, 30,   90,  0
+
+
+# Pipes Data
+
+# keyword, id,    type        node_in_name    node_out_name,    length
+pipe,      p1,    1way,       n1,             n2,               10
+pipe,      p2,    1way,       n3,             n4,               10
+pipe,      p3,    1way,       n4,             n5,               10
+pipe,      p4,    2way,       n5,             n6,               10
+pipe,      p5,    1way,       n5,             n7,               10
+pipe,      p6,    2way,       n7,             n8,               10
+pipe,      p7,    1way,       n7,             n9,               10
+pipe,      p8,    1way,       n9,             n10,              10
+pipe,      p9,    2way,       n11,            n12,              10
+pipe,      p10,   1way,       n12,            n13,              10
+pipe,      p11,   2way,       n13,            n14,              10
+pipe,      p12,   1way,       n13,            n15,              10
+pipe,      p13,   2way,       n15,            n16,              10
+pipe,      p14,   1way,       n15,            n17,              10
+pipe,      p15,   2way,       n17,            n18,              10
+pipe,      p16,   1way,       n17,            n19,              10
+pipe,      p17,   2way,       n19,            n20,              10
+pipe,      p18,   1way,       n19,            n21,              10
+pipe,      p19,   1way,       n21,            n22,              20
+pipe,      p20,   1way,       n22,            n23,              25
+pipe,      p21,   2way,       n23,            n24,              10
+pipe,      p22,   1way,       n23,            n25,              20
+pipe,      p23,   2way,       n25,            n26,              10
+pipe,      p24,   1way,       n25,            n27,              20
+pipe,      p25,   2way,       n27,            n28,              10
+pipe,      p26,   1way,       n27,            n29,              25
+pipe,      p27,   1way,       n29,            n30,              20
+pipe,      p28,   1way,       n30,            n1,               10
+
+
+# Heat Pump Model Library
+
+# keyword, name,   id,   a_htg,     b_htg,   c_htg, a_clg,   b_clg,   c_clg, c1_htg, c2_htg, c3_htg, c1_clg,  c2_clg, c3_clg, m_single_hp, design_htg_cap, design_clg_cap
+HPmodel,   HP_AtW, HP1, -0.0000713, 0.00534, 0.734, 0.0001,  0.00112, 1.13, -0.124,  112,    4114,  -0.393,  -30.3,   6777,   0.296,       4140,           4396
+HPmodel,   HP_AtW, HP2, -0.0000786, 0.00539, 0.734, 0.0001, -0.00041, 1.15,  0.178,  158,    6712,  -1.2,    -4.72,   9629,   0.495,       6797,           6709
+HPmodel,   HP_AtW, HP3, -0.000068, 0.00497,  0.738, 0.0001, -0.00084, 1.16,  0.091,  224,    9422,  -2.16,    46.8,   12397,  0.693,       9500,           9752
+HPmodel,   HP_WtW, HP4, -0.0000606, 0.0051,  0.692, 0,       0,       0,    -1.19,   212,    8932,   0,       0,      0,      0.425,       9561,           0
+
+# System constants
+
+# keyword, value
+beta,      1.5
+
+
+
+
+
+
+
+
+
+
+
+
+

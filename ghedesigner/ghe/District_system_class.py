@@ -467,8 +467,6 @@ class GHEHPSystem:
                 thishpmodel.c1_clg, thishpmodel.c2_clg, thishpmodel.c3_clg = (float(cells[12]), float(cells[13]),
                                                                               float(cells[14]))
                 thishpmodel.m_single_hp = float(cells[15])
-                thishpmodel.m_design_htg_cap = float(cells[16])
-                thishpmodel.m_design_clg_cap = float(cells[17])
                 self.HPmodels.append(thishpmodel)
 
             if keyword == "beta":

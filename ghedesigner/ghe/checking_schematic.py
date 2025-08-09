@@ -108,7 +108,6 @@ class Node:
         self.output = None
         self.diversion = None
 
-
 class Pipe:
     def __init__(self):
         self.ID = None
@@ -136,12 +135,18 @@ class HPmodel:
 class Isolation_HX:
     def __init__(self):
         self.name = None
+        self.type = "ISHX"
         self.ID = None
         self.node_network_inlet_ID = None
-        self.node_network_outlet_ID = None
         self.node_HP_inlet_ID = None
         self.node_HP_outlet_ID = None
+        self.beta_ISHX = None
         self.zoneID = None
+        self.input = None
+        self.HP_output = None
+        self.HP_input = None
+        self.upstream_device = None
+        self.downstream_device = None
 
 
 class GHEHPSystem:
@@ -233,10 +238,11 @@ class GHEHPSystem:
                 thisishx.name = str(cells[1])
                 thisishx.ID = str(cells[2])
                 thisishx.node_network_inlet_ID = str(cells[3])
-                thisishx.node_network_outlet_ID = str(cells[4])
-                thisishx.node_HP_inlet_ID = str(cells[5])
-                thisishx.node_HP_outlet_ID = str(cells[6])
+                thisishx.node_HP_inlet_ID = str(cells[4])
+                thisishx.node_HP_outlet_ID = str(cells[5])
+                thisishx.beta_ISHX = float(cells[6])
                 thisishx.node_zoneIDs = ([zones.strip() for zones in cells[7:]])
+                self.ISHXs.append(thisishx)
 
             if keyword == 'node':
                 thisnode = Node()
@@ -269,8 +275,6 @@ class GHEHPSystem:
                 thishpmodel.c1_clg, thishpmodel.c2_clg, thishpmodel.c3_clg = (float(cells[12]), float(cells[13]),
                                                                               float(cells[14]))
                 thishpmodel.m_single_hp = float(cells[15])
-                thishpmodel.m_design_htg_cap = float(cells[16])
-                thishpmodel.m_design_clg_cap = float(cells[17])
                 self.HPmodels.append(thishpmodel)
 
             if keyword == "beta":
@@ -306,13 +310,17 @@ class GHEHPSystem:
             GHX.input.output = GHX
 
         for ISHX in self.ISHXs:
-            ISHX.network_input = FindItemByID(ISHX.node_network_inlet_ID, self.nodes)
-            ISHX.network_output = FindItemByID(ISHX.node_network_outlet_ID, self.nodes)
+            ISHX.input = FindItemByID(ISHX.node_network_inlet_ID, self.nodes)
             ISHX.HP_input = FindItemByID(ISHX.node_HP_inlet_ID, self.nodes)
             ISHX.HP_output = FindItemByID(ISHX.node_HP_outlet_ID, self.nodes)
 
+            ISHX.input.output = ISHX
+            ISHX.HP_output.input = ISHX
+            ISHX.HP_input.output = ISHX
+
+        # finding upstream and downstream device for GHX
+
         for GHX in self.GHXs:
-            # find the upstream device
 
             # find the first upstream mixing node
             device = GHX.input
@@ -332,11 +340,35 @@ class GHEHPSystem:
             GHX.upstream_device = device
             device.downstream_device = GHX
 
-        #find the upstream device
+        # finding upstream and donwstream device for zones
 
         for zone in self.zones:
             # find the first upstream mixing node
             device = zone.input
+            while device.type != "mixing":
+                device = device.input
+
+            # find the second upstream mixing node or if upstream device if it is connected to ISHX
+            device = device.input
+            while device.type != "mixing" and device.type != "device":
+                device = device.input
+
+            # find the upstream device
+            if device.type == "mixing":
+                device = device.diversion
+                while device.type != "GHX" and device.type != "zone" and device.type != "ISHX":
+                    device = device.output
+
+            else:
+                device = device.input
+
+            zone.upstream_device = device
+            device.downstream_device = zone
+
+        # finding upstream and donwstream device for ISHX
+        for ISHX in self.ISHXs:
+            # find first upstream node
+            device = ISHX.input
             while device.type != "mixing":
                 device = device.input
 
@@ -345,13 +377,13 @@ class GHEHPSystem:
             while device.type != "mixing":
                 device = device.input
 
-            # find the upstream device
+            # finding upstream device
             device = device.diversion
             while device.type != "GHX" and device.type != "zone":
                 device = device.output
 
-            zone.upstream_device = device
-            device.downstream_device = zone
+            ISHX.upstream_device = device
+            device.downstream_device = ISHX
 
     def drawnetwork(self):
         pipes = self.pipes
@@ -361,29 +393,29 @@ class GHEHPSystem:
         ISHXs = self.ISHXs
 
 
-        # Drawing zones
-        glLineWidth(5)
-        glColor3f(0, 0, 0)
-
-        for zone in zones:
-            glBegin(GL_LINE_LOOP)  # begin drawing connected lines
-            glVertex2f(zone.input.x, zone.input.y + 2)
-            glVertex2f(zone.input.x + 10, zone.input.y + 2)
-            glVertex2f(zone.input.x + 10, zone.input.y - 2)
-            glVertex2f(zone.input.x, zone.input.y - 2)
-            glEnd()
-
-        # Drawing GHXs
-        glLineWidth(5)
-        glColor3f(1, 1, 1)
-
-        for GHX in GHXs:
-            glBegin(GL_LINE_LOOP)  # begin drawing connected lines
-            glVertex2f(GHX.input.x, GHX.input.y + 2)
-            glVertex2f(GHX.input.x - 10, GHX.input.y + 2)
-            glVertex2f(GHX.input.x - 10, GHX.input.y - 2)
-            glVertex2f(GHX.input.x, GHX.input.y - 2)
-            glEnd()
+        # # Drawing zones
+        # glLineWidth(5)
+        # glColor3f(0, 0, 0)
+        #
+        # for zone in zones:
+        #     glBegin(GL_LINE_LOOP)  # begin drawing connected lines
+        #     glVertex2f(zone.input.x, zone.input.y + 2)
+        #     glVertex2f(zone.input.x + 10, zone.input.y + 2)
+        #     glVertex2f(zone.input.x + 10, zone.input.y - 2)
+        #     glVertex2f(zone.input.x, zone.input.y - 2)
+        #     glEnd()
+        #
+        # # Drawing GHXs
+        # glLineWidth(5)
+        # glColor3f(1, 1, 1)
+        #
+        # for GHX in GHXs:
+        #     glBegin(GL_LINE_LOOP)  # begin drawing connected lines
+        #     glVertex2f(GHX.input.x, GHX.input.y + 2)
+        #     glVertex2f(GHX.input.x - 10, GHX.input.y + 2)
+        #     glVertex2f(GHX.input.x - 10, GHX.input.y - 2)
+        #     glVertex2f(GHX.input.x, GHX.input.y - 2)
+        #     glEnd()
 
         # Drawing pipes
         glColor3f(0, 0, 1)
@@ -418,7 +450,7 @@ class GHEHPSystem:
 
         # Drawing nodes
         glLineWidth(3)
-        radius = 1
+        radius = 0.5
         for node in nodes:
             if node.type == "mixing":
                 glColor3f(1, 0, 0)

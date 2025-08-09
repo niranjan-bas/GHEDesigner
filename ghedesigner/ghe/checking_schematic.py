@@ -147,6 +147,8 @@ class Isolation_HX:
         self.HP_input = None
         self.upstream_device = None
         self.downstream_device = None
+        self.upstream_device_HP = None
+        self.downstream_device_HP = None
 
 
 class GHEHPSystem:
@@ -384,6 +386,40 @@ class GHEHPSystem:
 
             ISHX.upstream_device = device
             device.downstream_device = ISHX
+
+        #finding ISHX upstream device in HP side
+
+        for ISHX in self.ISHXs:
+            device = ISHX.HP_input
+            # finding first upstream mixing node
+            while device.type != "mixing":
+                device = device.input
+
+            # finding upstream device
+            device = device.diversion
+            while device.type != "zone":
+                device = device.output
+
+            ISHX.upstream_device_HP = device
+            device.downstream_device = ISHX
+
+        # finding ISHX downstream device in HP side
+
+        for ISHX in self.ISHXs:
+            device = ISHX.HP_output
+
+            # finding first mixing node
+            while device.type != "mixing":
+                device = device.output
+
+            # finding downstream device
+            device = device.diversion
+            while device.type != "zone":
+                device = device.output
+
+            ISHX.downstream_device_HP = device
+            device.upstream_device = ISHX
+
 
     def drawnetwork(self):
         pipes = self.pipes

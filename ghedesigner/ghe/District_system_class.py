@@ -348,6 +348,7 @@ class GHEHPSystem:
         self.nodes = []
         self.pipes = []
         self.HPmodels = []
+        self.ISHXs = []
         self.current_row = 0
         self.m_loop = None
         self.bhe = None
@@ -455,6 +456,7 @@ class GHEHPSystem:
                 thisishx.node_HP_inlet_ID = str(cells[5])
                 thisishx.node_HP_outlet_ID = str(cells[6])
                 thisishx.node_zoneIDs = ([zones.strip() for zones in cells[7:]])
+                self.ISHXs.append(thisishx)
 
             if keyword == 'node':
                 thisnode = Node()
@@ -487,8 +489,6 @@ class GHEHPSystem:
                 thishpmodel.c1_clg, thishpmodel.c2_clg, thishpmodel.c3_clg = (float(cells[12]), float(cells[13]),
                                                                               float(cells[14]))
                 thishpmodel.m_single_hp = float(cells[15])
-                thishpmodel.m_design_htg_cap = float(cells[16])
-                thishpmodel.m_design_clg_cap = float(cells[17])
                 self.HPmodels.append(thishpmodel)
 
             if keyword == "beta":

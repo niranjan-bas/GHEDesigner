@@ -13,13 +13,13 @@ Building, Mediumoffice,     B3, b3z1, b3z2
 
 # Zone data
 
-# keyword, name,          id,     nodeID,   HPmodel,  loads_file
-Zone,      space_htg/clg, b1z1,   n6,       HP1,      B1Z1.csv
-Zone,      space_htg/clg, b1z2,   n8,       HP4,      B1Z2.csv
-Zone,      space_htg/clg, b2z1,   n12,      HP2,      B2Z1.csv
-Zone,      water_htg,     b2z2,   n14,      HP4,      B2Z2.csv
-Zone,      water_htg,     b3z1,   n16,      HP3,      B3Z1.csv
-Zone,      water_htg,     b3z2,   n18,      HP4,      B3Z2.csv
+# keyword, name,           connection_downstream,  ISHX_ID,  id,     nodeID,   HPmodel,  loads_file
+Zone,      space_htg/clg,  zone,                   ishx1     b1z1,   n6,       HP1,      B1Z1.csv
+Zone,      space_htg/clg,  ISHX,                   ishx1,    b1z2,   n8,       HP4,      B1Z2.csv
+Zone,      space_htg/clg,  zone,                   None,     b2z1,   n12,      HP2,      B2Z1.csv
+Zone,      water_htg,      zone,                   None,     b2z2,   n14,      HP4,      B2Z2.csv
+Zone,      water_htg,      zone,                   None,     b3z1,   n16,      HP3,      B3Z1.csv
+Zone,      water_htg,      zone,                   None,     b3z2,   n18,      HP4,      B3Z2.csv
 
 
 #  keyword, id,   nodeID, n_rows, n_cols, row_spacing (m), col_spacing (m),  height     m_flow_ghe_design
@@ -28,8 +28,8 @@ GHX,        ghe2, n24,    10,     8,      5,               5,                100
 GHX,        ghe3, n26,    10,     7,      5,               5,                100,       23.63
 
 
-# keyword,   name,            id,     node_network_inlet_ID,    node_HP_inlet_ID,       node_HP_outlet_ID,    beta_ishx     zoneID
-ISHX,        counter_flow,   ishx1,   n2,                       n10,                    n3,                   1.5,          b1z1, b1z2
+# keyword,   name,            id,     node_network_inlet_ID,    node_HP_inlet_ID,       node_HP_outlet_ID,    beta_ishx,   effectiveness,     zoneID
+ISHX,        counter_flow,   ishx1,   n2,                       n10,                    n3,                   1.5,         0.8,               b1z1, b1z2
 
 
 # nodes data
@@ -107,8 +107,9 @@ HPmodel,   HP_WtW, HP4, -0.0000606, 0.0051,  0.692, 0,       0,       0,    -1.1
 
 # System constants
 
-# keyword, value
-beta,      1.5
+# keyword,       beta_loop,
+beta,            1.5
+
 
 
 

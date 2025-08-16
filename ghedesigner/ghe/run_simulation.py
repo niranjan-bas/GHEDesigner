@@ -1,4 +1,5 @@
-from District_system_class import GHEHPSystem
+#from District_system_class import GHEHPSystem
+from checking_schematic import GHEHPSystem
 from OpenGL_2D_class_GLFW import gl2D
 
 import time

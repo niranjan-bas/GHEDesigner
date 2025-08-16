@@ -14,7 +14,7 @@ Building, Mediumoffice,     B3, b3z1, b3z2
 # Zone data
 
 # keyword, name,           connection_downstream,  ISHX_ID,  id,     nodeID,   HPmodel,  loads_file
-Zone,      space_htg/clg,  zone,                   ishx1     b1z1,   n6,       HP1,      B1Z1.csv
+Zone,      space_htg/clg,  zone,                   ishx1,    b1z1,   n6,       HP1,      B1Z1.csv
 Zone,      space_htg/clg,  ISHX,                   ishx1,    b1z2,   n8,       HP4,      B1Z2.csv
 Zone,      space_htg/clg,  zone,                   None,     b2z1,   n12,      HP2,      B2Z1.csv
 Zone,      water_htg,      zone,                   None,     b2z2,   n14,      HP4,      B2Z2.csv
@@ -29,7 +29,7 @@ GHX,        ghe3, n26,    10,     7,      5,               5,                100
 
 
 # keyword,   name,            id,     node_network_inlet_ID,    node_HP_inlet_ID,       node_HP_outlet_ID,    beta_ishx,   effectiveness,     zoneID
-ISHX,        counter_flow,   ishx1,   n2,                       n10,                    n3,                   1.5,         0.8,               b1z1, b1z2
+ISHX,        counter_flow,   ishx1,   n2,                       n10,                    n3,                   1,           0.8,               b1z1, b1z2
 
 
 # nodes data

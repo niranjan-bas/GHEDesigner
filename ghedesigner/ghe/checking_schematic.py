@@ -244,7 +244,7 @@ class Zone:
         hp_capacity = cap_htg if q_i > 0 else cap_clg
 
         # compute mass flow rates
-        self.mass_flow_zone = np.abs(q_i) / hp_capacity * m_single_hp
+        self.mass_flow_zone = np.abs(q_i) / np.abs(hp_capacity) * m_single_hp
 
         return self.mass_flow_zone
 
@@ -670,13 +670,13 @@ class GHEHPSystem:
                 ISHX.m_loop_n = ISHX.m_loop_hp * ISHX.beta_ISHX
                 total_m_loop_n += ISHX.m_loop_n
 
-            m_loop = total_m_loop_n + total_hp_flow
+            m_loop = (total_m_loop_n + total_hp_flow) * self.beta_loop
 
             # Generating matrix for zones connected to ISHX
             for ISHX in self.ISHXs:
                 for zone in self.zones:
                     if zone in ISHX.zones:
-                        m_loop = ISHX.m_loop_n
+                        m_loop = ISHX.m_loop_hp
                         t_eft = zone.t_eft[i - 1]
                         r1, r2 = zone.calculate_r1_r2(t_eft, i)
                         this_zone_row, rhs = zone.generate_zone_matrix_row(matrix_size, m_loop, cp, r1, r2)
@@ -688,7 +688,7 @@ class GHEHPSystem:
                 if zone.ISHX_ID == "None":
                     t_eft = zone.t_eft[i - 1]
                     r1, r2 = zone.calculate_r1_r2(t_eft, i)
-                    m_loop = total_m_loop_n + total_hp_flow
+                    m_loop = (total_m_loop_n + total_hp_flow) * self.beta_loop
                     this_zone_row, rhs = zone.generate_zone_matrix_row(matrix_size, m_loop, cp, r1, r2)
                     matrix_rows.append(this_zone_row)
                     matrix_rhs.append(rhs)
@@ -716,7 +716,7 @@ class GHEHPSystem:
                 C_hp = ISHX.m_loop_hp * cp
                 C_min = min(C_n, C_hp)
                 m_loop_n = ISHX.m_loop_n
-                m_loop = total_m_loop_n + total_hp_flow
+                m_loop = (total_m_loop_n + total_hp_flow) * self.beta_loop
                 rows, rhs_values = ISHX.generate_ISHX_matrix_row(matrix_size, C_n, C_hp, effec, C_min, m_loop, cp, m_loop_n)
                 for row, rhs in zip(rows, rhs_values):
                     matrix_rows.append(row)
@@ -1047,6 +1047,7 @@ System = GHEHPSystem()
 
 def main():
     f1 = open("1-pipe_3ghe-6hp_system_w_pumping_station_input.txt", 'r')
+    #f1 = open("1-pipe_3ghe-6hp_system_input.txt", 'r')
     data = f1.readlines()  # read the entire file as a list of strings
     f1.close()  # close the file  ... very important
 

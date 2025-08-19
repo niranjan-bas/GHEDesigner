@@ -158,7 +158,7 @@ class GHX:
         )
         return H_n_ghe[i]
 
-    def generate_GHX_matrix_row(self, matrix_size, m_loop, mass_flow_ghe, cp, H_n_ghe, c_n):
+    def generate_GHX_matrix_row(self, matrix_size, m_loop, mass_flow_ghe, cp, H_n_ghe, c_n, i):
         row1 = np.zeros(matrix_size)
         row2 = np.zeros(matrix_size)
         row3 = np.zeros(matrix_size)
@@ -172,7 +172,7 @@ class GHX:
         row1[neighbour_index] = - m_loop * cp
 
         row2[row_index + 1] = 1
-        row2[row_index + 2] = c_n
+        row2[row_index + 2] = c_n[i]
 
         row3[row_index] = -1
         row3[row_index + 1] = 2
@@ -602,7 +602,8 @@ class GHEHPSystem:
             h_values = [borehole.H]
             self.gFunction = GHX.generate_g_function_object(self.log_time, calc_g_func_for_multiple_lengths, h_values)
             self.g, _ = GHX.grab_g_function(self.log_time)
-            self.c_n = GHX.calculation_of_ghe_constant_c_n(self.g, ts, time_array, n_timesteps)
+            #self.c_n = GHX.calculation_of_ghe_constant_c_n(self.g, ts, time_array, n_timesteps)
+            GHX.c_n = GHX.calculation_of_ghe_constant_c_n(self.g, ts, time_array, n_timesteps)
 
             # Initializing the values
             for GHX in self.GHXs:
@@ -701,10 +702,11 @@ class GHEHPSystem:
                 split_ratio = nbh / nbh_total
                 mass_flow_ghe = m_loop * split_ratio
                 g = self.g
-                c_n = self.c_n[i]
+                #c_n = self.c_n[i]
+                c_n = GHX.c_n  # this is array, while using this in matrix we pick c_n[i], a single float number
                 H_n_ghe = GHX.compute_history_term(i, time_array, ts, two_pi_k, g, tg, GHX.H_n_ghe,
                                                    GHX.total_values_ghe, q_ghe)
-                rows, rhs_values = GHX.generate_GHX_matrix_row(matrix_size, m_loop, mass_flow_ghe, cp, H_n_ghe, c_n)
+                rows, rhs_values = GHX.generate_GHX_matrix_row(matrix_size, m_loop, mass_flow_ghe, cp, H_n_ghe, c_n, i)
                 for row, rhs in zip(rows, rhs_values):
                     matrix_rows.append(row)
                     matrix_rhs.append(rhs)
@@ -1047,7 +1049,7 @@ System = GHEHPSystem()
 
 def main():
     f1 = open("1-pipe_3ghe-6hp_system_w_pumping_station_input.txt", 'r')
-    #f1 = open("1-pipe_3ghe-6hp_system_input.txt", 'r')
+    # f1 = open("1-pipe_3ghe-6hp_system_input.txt", 'r')
     data = f1.readlines()  # read the entire file as a list of strings
     f1.close()  # close the file  ... very important
 

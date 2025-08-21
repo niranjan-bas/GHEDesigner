@@ -68,8 +68,9 @@ class GHX:
         self.t_exit = None
 
     def generate_g_function_object(self, log_time, calc_g_func_for_multiple_lengths, h_values):
-        self.r_b = self.bhe.calc_effective_borehole_resistance()
+        self.bh_effective_resist = self.bhe.calc_effective_borehole_resistance()
         self.depth = self.bhe.b.D
+        self.r_b = self.bhe.b.r_b
         self.mass_flow_ghe_borehole_design = self.mass_flow_ghe_design/self.nbh
         h_values = [self.height]
         coordinates_ghe = [(i * self.row_spacing, j * self.row_spacing) for i in range(int(self.n_rows)) for j in range(int(self.n_cols))]
@@ -125,7 +126,7 @@ class GHX:
             delta_log_time = np.log((time_array[i] - time_array[i - 1]) / (ts / 3600))
             g_val = g(delta_log_time)
 
-            c_n[i] = (1 / two_pi_k * g_val) + self.r_b
+            c_n[i] = (1 / two_pi_k * g_val) + self.bh_effective_resist
 
         return c_n
 
@@ -217,6 +218,11 @@ class Zone:
         self.upstream_device = None
         self.downstream_device = None
 
+        self.P_zone_htg = None
+        self.P_zone_clg = None
+        self.P_zone_cp = None
+
+
     def q_net_htg(self):
         """
         Calculate net heat extracted/rejected each hour for the zone.
@@ -295,6 +301,36 @@ class Zone:
         rhs = r2/(m_loop * cp)
         return row, rhs
 
+    def zone_energy_consumption(self, t_eft, i, m_flow_zone, density, cp_efficiency, beta_HP_cp_delta_P, delta_P_HP):
+
+        # Extract loads
+        htg_load = self.df_zone["HPHtgLd_W"].iloc[i] if "HPHtgLd_W" in self.df_zone.columns else 0.0
+        clg_load = self.df_zone["HPClgLd_W"].iloc[i] if "HPClgLd_W" in self.df_zone.columns else 0.0
+
+        # Extract HP coefficients
+        a_htg = self.HP.a_htg
+        b_htg = self.HP.b_htg
+        c_htg = self.HP.c_htg
+
+        a_clg = self.HP.a_clg
+        b_clg = self.HP.b_clg
+        c_clg = self.HP.c_clg
+
+        ratio_htg = a_htg * t_eft ** 2 + b_htg * t_eft + c_htg
+        ratio_clg = a_clg * t_eft ** 2 + b_clg * t_eft + c_clg
+
+        # zone (HP) power consumed
+        Power_zone_htg = htg_load * (1-ratio_htg)
+        Power_zone_clg = clg_load * (ratio_clg - 1)
+
+        # power consumed by circulating pump
+        Power_zone_cp = m_flow_zone / (density * cp_efficiency) * beta_HP_cp_delta_P * delta_P_HP
+
+        return Power_zone_htg, Power_zone_clg, Power_zone_cp
+
+
+
+
 
 class Node:
     def __init__(self):
@@ -329,6 +365,7 @@ class HPmodel:
         self.m_single_hp = None
         self.design_htg_cap = None
         self.design_clg_cap = None
+        self.delta_P_HP = None
 
 
 class IsolationHX:
@@ -418,10 +455,19 @@ class GHEHPSystem:
         self.m_loop = None
         self.beta_loop = None
         self.beta_ISHX_loop = None
+        self.beta_cl_cp_delta_P = None
 
         self.df = None
+        self.df1 = None
         self.current_frame = 0
         self.data = None
+
+        # for energy consumption calculations
+        self.HP_cp_efficiency = None
+        self.ISHX_cp_efficiency = None
+        self.GHE_cp_efficiency = None
+        self.beta_HP_cp_delta_P = None
+        self.P_cl_cp = None
 
     def read_GHEHPSystem_data(self, data):
         next_matrix_line = 0
@@ -513,10 +559,20 @@ class GHEHPSystem:
                 thishpmodel.c1_clg, thishpmodel.c2_clg, thishpmodel.c3_clg = (float(cells[12]), float(cells[13]),
                                                                               float(cells[14]))
                 thishpmodel.m_single_hp = float(cells[15])
+                thishpmodel.delta_P_HP = float(cells[16])
                 self.HPmodels.append(thishpmodel)
 
             if keyword == "beta":
                 self.beta_loop = float(cells[1])
+                self.beta_HP_cp_delta_P = float(cells[2])
+                self.beta_cl_cp_delta_P = float(cells[3])
+                self.beta_ghe_cp_delta_P = float(cells[4])
+
+            if keyword == "efficiency":
+                self.HP_cp_efficiency = float(cells[1])
+                self.ISHX_cp_efficiency = float(cells[2])
+                self.GHE_cp_efficiency = float(cells[3])
+                self.central_loop_efficiency = float(cells[4])
 
         # end for line
         self.UpdateConnections()
@@ -637,6 +693,17 @@ class GHEHPSystem:
             for k, ISHX in enumerate(self.ISHXs):
                 ISHX.row_index = len(self.zones) + len(self.GHXs) * 4
 
+            # Initializing
+            for zone in self.zones:
+                zone.P_zone_htg = np.zeros(n_timesteps)
+                zone.P_zone_clg = np.zeros(n_timesteps)
+                zone.P_zone_cp = np.zeros(n_timesteps)
+            self.P_cl_cp = np.zeros(n_timesteps)
+            for GHX in self.GHXs:
+                GHX.P_ghe_cp = np.zeros(n_timesteps)
+            for ISHX in self.ISHXs:
+                ISHX.P_ishx_cp = np.zeros(n_timesteps)
+
         for i in range(1, n_timesteps):  # loop over all timestep
             matrix_rows = []
             matrix_rhs = []
@@ -750,6 +817,45 @@ class GHEHPSystem:
                 ISHX.t_n_exft[i] = X_ishx[base + 1]
                 ISHX.t_hp_eft[i] = X_ishx[base + 2]
 
+            # zone energy consumption
+            for zone in self.zones:
+                q_net_htg = zone.q_net_htg()
+                t_eft = zone.t_eft[i - 1]
+                m_flow_zone = zone.zone_mass_flow_rate(t_eft, q_net_htg, i)
+                cp_efficiency = self.HP_cp_efficiency
+                beta_HP_cp_delta_P = self.beta_HP_cp_delta_P
+                delta_P_HP = zone.HP.delta_P_HP
+                density = fluid.density()
+                zone.P_zone_htg[i], zone.P_zone_clg[i], zone.P_zone_cp[i] = zone.zone_energy_consumption(t_eft, i, m_flow_zone,
+                                                                                 density, cp_efficiency,
+                                                                                 beta_HP_cp_delta_P, delta_P_HP)
+            # central loop energy consumption
+            beta_cl_cp_delta_P = self.beta_cl_cp_delta_P
+            delta_P_loop = beta_cl_cp_delta_P * m_loop**2
+            density = fluid.density()
+            self.P_cl_cp[i] = m_loop/(density * self.central_loop_efficiency) * delta_P_loop
+
+            # ground heat exchanger energy consumption
+            for GHX in self.GHXs:
+                nbh = GHX.n_rows * GHX.n_cols
+                length_ghe = 2 * GHX.height
+                split_ratio = nbh / nbh_total
+                mass_flow_ghe = m_loop * split_ratio
+                pipe_dia = 2 * pipe.r_in
+                roughness = 0.000001  # check this and all values
+                velocity = (mass_flow_ghe/nbh)/(density * np.pi * pipe.r_in**2)
+                Re_n = velocity * pipe.r_in * 2 / fluid.kinematic_viscosity()
+                A = 2.457 * np.log((7/Re_n)**0.9 + 0.27 * (roughness/pipe_dia))**16
+                B = (37530/Re_n)**16
+                friction_factor = 8 * ((8/Re_n)**12 + (A + B)**-1.5)**(1/12)
+                delta_P_ghe = friction_factor * length_ghe * density * velocity**2 / (2 * pipe_dia)
+                GHX.P_ghe_cp[i] = mass_flow_ghe / (density * self.GHE_cp_efficiency) * delta_P_ghe * self.beta_ghe_cp_delta_P
+
+            # isolation heat exchanger energy consumption
+            for ISHX in self.ISHXs:
+                delta_P_ISHX = beta_cl_cp_delta_P * ISHX.m_loop_n**2
+                ISHX.P_ishx_cp[i] = ISHX.m_loop_n / (density * self.ISHX_cp_efficiency) * delta_P_ISHX
+
     def createOutput(self):
         # create csv files
         n_timesteps = self.time_array_size
@@ -804,6 +910,55 @@ class GHEHPSystem:
 
         # Save to CSV
         self.df.to_csv("output_results.csv")
+
+    def output_file_energy_consumption(self):
+        # create csv files
+        n_timesteps = self.time_array_size
+        data_rows = []
+
+        for i in range(n_timesteps):
+            row = []
+            for zone in self.zones:
+                row.append(zone.P_zone_htg[i])
+                row.append(zone.P_zone_clg[i])
+                row.append(zone.P_zone_cp[i])
+
+            row.append(self.P_cl_cp[i])
+
+            for GHX in self.GHXs:
+                row.append(GHX.P_ghe_cp[i])
+
+            for ISHX in self.ISHXs:
+                row.append(ISHX.P_ishx_cp[i])
+
+            data_rows.append(row)
+
+        # Step 2: Create column labels
+        column_names = []
+
+        for j, zone in enumerate(self.zones):
+            column_names.append(f"Zone{j}_P_htg")
+            column_names.append(f"Zone{j}_P_clg")
+            column_names.append(f"Zone{j}_P_cp")
+
+        column_names.append(f"central_loop_P_cp")
+
+        for j, GHX in enumerate(self.GHXs):
+            column_names.append(f"GHX{j}_P_cp")
+
+        for j, ISHX in enumerate(self.ISHXs):
+            column_names.append(f"ISHX{j}_P_cp")
+
+        # Step 3: Create and save DataFrame
+        self.df1 = pd.DataFrame(data_rows, columns=column_names)
+        self.df1.index.name = "Hour"
+
+        # Drop timestep 0 and reindex starting from 1
+        self.df1 = self.df1.iloc[1:]
+        self.df1.index = range(1, len(self.df) + 1)
+
+        # Save to CSV
+        self.df1.to_csv("Energy_consumption_results.csv")
 
     def UpdateConnections(self):
 
@@ -1049,7 +1204,7 @@ System = GHEHPSystem()
 
 def main():
     # f1 = open("1-pipe_3ghe-6hp_system_w_pumping_station_input.txt", 'r')
-    f1 = open("1-pipe_3ghe-6hp_system_wo_ISHX_input.txt", 'r')
+    f1 = open("1-pipe_3ghe-6hp_system_w_ISHX_input.txt", 'r')
     data = f1.readlines()  # read the entire file as a list of strings
     f1.close()  # close the file  ... very important
 
@@ -1058,6 +1213,7 @@ def main():
     fluid, pipe, grout, soil, borehole, sim_params = System.read_data_from_json_file()
     System.solveSystem(fluid, pipe, grout, soil, borehole, sim_params)
     System.createOutput()
+    System.output_file_energy_consumption()
 
     # Draw
     gl2d = gl2D(None, System.drawnetwork, width=2000, height=1500)

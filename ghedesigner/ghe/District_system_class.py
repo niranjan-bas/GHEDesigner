@@ -9,14 +9,15 @@ from ghedesigner.ghe.simulation import SimulationParameters
 from ghedesigner.enums import BHPipeType, TimestepType
 from ghedesigner.ghe.gfunction import GFunction, calc_g_func_for_multiple_lengths
 from ghedesigner.ghe.ground_heat_exchangers import BaseGHE
+from ghedesigner.utilities import eskilson_log_times
 
 from OpenGL.GL import *
 from OpenGL_2D_class_GLFW import gl2D, gl2DCircle, gl2DText,gl2DArrow, gl2DArc
-#from HersheyFont import HersheyFont
-#hf = HersheyFont()
 
 import json
+import time
 
+start = time.time()
 
 class GHX:
     def __init__(self):
@@ -50,7 +51,7 @@ class GHX:
 
         # Computed properties
         self.bhe = None
-        self.r_b = None # borehole thermal resistance
+        self.r_b = None
         self.gFunction = None
         self.mass_flow_ghe = None
         self.mass_flow_ghe_borehole = None
@@ -66,9 +67,9 @@ class GHX:
         self.t_mean = None
         self.q_ghe = None
         self.t_exit = None
+        self.t_bw = None
 
     def generate_g_function_object(self, log_time, calc_g_func_for_multiple_lengths, h_values):
-        self.bh_effective_resist = self.bhe.calc_effective_borehole_resistance()
         self.depth = self.bhe.b.D
         self.r_b = self.bhe.b.r_b
         self.mass_flow_ghe_borehole_design = self.mass_flow_ghe_design/self.nbh
@@ -80,7 +81,7 @@ class GHX:
         )
         return self.gFunction
 
-    def grab_g_function(self, log_time):
+    def grab_g_function(self):
         """
         Interpolates g-function values using self.gFunction and self.bhe,
         and returns g and g_bhw arrays.
@@ -96,23 +97,21 @@ class GHX:
 
         # Combine STS and LTS g-functions
         g = BaseGHE.combine_sts_lts(
-            log_time,
+            self.gFunction.log_time,
             g_function_corrected,
             self.bhe.lntts.tolist(),
             self.bhe.g.tolist(),
         )
 
         g_bhw = BaseGHE.combine_sts_lts(
-            log_time,
+            self.gFunction.log_time,
             g_function_corrected,
             self.bhe.lntts.tolist(),
             self.bhe.g_bhw.tolist(),
         )
-
         return g, g_bhw
 
-    def calculation_of_ghe_constant_c_n(self, g, ts, time_array, n_timesteps):
-
+    def calculation_of_ghe_constant_c_n(self, g_bhw, ts, time_array, n_timesteps, bhe_effective_resist):
         """
         Calculate C_n values for three GHEs based on their g-functions.
 
@@ -123,14 +122,13 @@ class GHX:
         c_n = np.zeros(n_timesteps, dtype=float)
 
         for i in range(1, n_timesteps):
-            delta_log_time = np.log((time_array[i] - time_array[i - 1]) / (ts / 3600))
-            g_val = g(delta_log_time)
-
-            c_n[i] = (1 / two_pi_k * g_val) + self.bh_effective_resist
+            delta_log_time = np.log((time_array[i] - time_array[i - 1]) / (ts / 3600.0))
+            g_val = g_bhw(delta_log_time)
+            c_n[i] = (1 / two_pi_k * g_val) + bhe_effective_resist
 
         return c_n
 
-    def compute_history_term(self, i, time_array, ts, two_pi_k, g, tg, H_n_ghe, total_values_ghe, q_ghe):
+    def compute_history_term(self, i, time_array, ts, two_pi_k, g_bhw, tg, H_n_ghe, total_values_ghe, q_ghe):
         """
         Computes the history term H_n for this GHX at time index `i`.
         Updates self.total_values_ghe and self.H_n_ghe in place.
@@ -144,18 +142,18 @@ class GHX:
 
         # Compute dimensionless time for all indices from 1 to i-1
         indices = np.arange(1, i)
-        dim_less_time = np.log((time_n - time_array[indices - 1]) / (ts / 3600))
+        dim_less_time = np.log((time_n - time_array[indices - 1]) / (ts / 3600.0))
 
         # Compute contributions from all previous steps
         delta_q_ghe = (q_ghe[indices] - q_ghe[indices - 1]) / two_pi_k
-        values = np.sum(delta_q_ghe * g(dim_less_time))
+        values = np.sum(delta_q_ghe * g_bhw(dim_less_time))
 
         total_values_ghe[i] = values
 
         # Contribution from the last time step only
-        dim1_less_time = np.log((time_n - time_array[i - 1]) / (ts / 3600))
+        dim1_less_time = np.log((time_n - time_array[i - 1]) / (ts / 3600.0))
         H_n_ghe[i] = tg - total_values_ghe[i] + (
-                q_ghe[i - 1] / two_pi_k * g(dim1_less_time)
+                q_ghe[i - 1] / two_pi_k * g_bhw(dim1_less_time)
         )
         return H_n_ghe[i]
 
@@ -294,7 +292,7 @@ class Zone:
         neighbour_index = self.downstream_device.row_index
         row = np.zeros(matrix_size)
         row[self.row_index] = 1 - r1/(m_loop * cp)
-        if self.connection_downstream == "zone":
+        if self.downstream_device.type in ("zone", "GHX"):
             row[neighbour_index] = -1
         else:
             row[neighbour_index + 2] = -1
@@ -327,10 +325,6 @@ class Zone:
         Power_zone_cp = m_flow_zone / (density * cp_efficiency) * beta_HP_cp_delta_P * delta_P_HP
 
         return Power_zone_htg, Power_zone_clg, Power_zone_cp
-
-
-
-
 
 class Node:
     def __init__(self):
@@ -448,6 +442,7 @@ class GHEHPSystem:
         self.nbh_total = None
         self.gFunction = None
         self.g = None
+        self.g_bhw = None
         self.log_time = None
         self.mass_flow_ghe = None
         self.bhe_eq = None
@@ -500,18 +495,17 @@ class GHEHPSystem:
                 self.buildings.append(thisbuilding)
 
             if keyword == 'zone':
-                df = pd.read_csv(cells[7])
+                df = pd.read_csv(cells[6])
                 self.time_array = df['Hours'].values
                 self.time_array_size = len(self.time_array)
 
                 thiszone = Zone()
                 thiszone.name = str(cells[1])
-                thiszone.connection_downstream = str(cells[2])
-                thiszone.ISHX_ID = str(cells[3])
-                thiszone.ID = str(cells[4])
-                thiszone.nodeID = str(cells[5])
-                thiszone.HPmodel = str(cells[6])
-                thiszone.loads_file = pd.read_csv(cells[7])
+                thiszone.ISHX_ID = str(cells[2])
+                thiszone.ID = str(cells[3])
+                thiszone.nodeID = str(cells[4])
+                thiszone.HPmodel = str(cells[5])
+                thiszone.loads_file = pd.read_csv(cells[6])
                 thiszone.matrix_line = next_matrix_line
                 next_matrix_line += 1
                 self.zones.append(thiszone)
@@ -578,7 +572,7 @@ class GHEHPSystem:
         self.UpdateConnections()
 
     def read_data_from_json_file(self):
-        with open("find_design_bi_rectangle_single_u_tube.json", 'r') as f:
+        with open("Test_with_1000W_loads.json", 'r') as f:
             self.data = json.load(f)
 
         # Extract input values
@@ -629,7 +623,6 @@ class GHEHPSystem:
         time_array = self.time_array
         n_timesteps = self.time_array_size
         matrix_size = len(self.zones) + 4 * len(self.GHXs) + 3 * len(self.ISHXs)
-        self.log_time = np.linspace(-10, 4, 25).tolist()
         nbh_total = sum(GHX.n_rows * GHX.n_cols for GHX in self.GHXs)
         self.nbh_total = nbh_total
 
@@ -650,59 +643,75 @@ class GHEHPSystem:
             GHX.bhe = get_bhe_object(GHX.bhe_type, GHX.mass_flow_ghe_borehole_design, GHX.fluid, GHX.borehole,
                                      GHX.pipe, GHX.grout, GHX.soil)
             GHX.bhe_eq = GHX.bhe.to_single()
-            GHX.bhe_eq.calc_sts_g_functions()
+            GHX.bhe_eq.calc_sts_g_functions()     # this functions returns: self.lntts, self.g and self.g_bhw
             ts = GHX.bhe_eq.t_s
+            self.log_time = eskilson_log_times()
             cp = GHX.bhe.fluid.cp
             tg = GHX.bhe.soil.ugt
             borehole.H = GHX.height
             h_values = [borehole.H]
             self.gFunction = GHX.generate_g_function_object(self.log_time, calc_g_func_for_multiple_lengths, h_values)
-            self.g, _ = GHX.grab_g_function(self.log_time)
-            #self.c_n = GHX.calculation_of_ghe_constant_c_n(self.g, ts, time_array, n_timesteps)
-            GHX.c_n = GHX.calculation_of_ghe_constant_c_n(self.g, ts, time_array, n_timesteps)
+            #self.g, _ = GHX.grab_g_function()
+            _, self.g_bhw = GHX.grab_g_function()
+            self.bhe_effective_resist = GHX.bhe.calc_effective_borehole_resistance()
+            GHX.c_n = GHX.calculation_of_ghe_constant_c_n(self.g_bhw, ts, time_array, n_timesteps, self.bhe_effective_resist)
 
-            # Initializing the values
-            for GHX in self.GHXs:
-                GHX.H_n_ghe, GHX.total_values_ghe, GHX.q_ghe = np.full((n_timesteps), tg), np.zeros(
-                    n_timesteps), np.zeros(n_timesteps)
+            # Save combined g-function knot points from the interp1d
+            # x = np.asarray(self.g.x)  # ln(t/ts)
+            # y = np.asarray(self.g.y)  # g-function
 
-            # Assigning indices to zones
-            for idx, zone in enumerate(self.zones):
-                zone.index = idx
+            # df_gfunc = pd.DataFrame({
+            #     "log_time": x,
+            #     "g_function": y,
+            # })
+            #
+            # df_gfunc.to_csv("g_combined_points.csv", index=False)
+            # print("Saved g points to g_combined_points.csv")
 
-            # Initializing t_eft, t_mean, q_ghe, t_exit
-            for zone in self.zones:
-                zone.t_eft = np.full(n_timesteps, tg)
+        # Initializing the values
+        for GHX in self.GHXs:
+            GHX.H_n_ghe, GHX.total_values_ghe, GHX.q_ghe = np.full((n_timesteps), tg), np.zeros(
+                n_timesteps), np.zeros(n_timesteps)
 
-            for GHX in self.GHXs:
-                GHX.t_eft = np.full(n_timesteps, tg)
-                GHX.t_mean = np.full(n_timesteps, tg)
-                GHX.q_ghe = np.zeros(n_timesteps)
-                GHX.t_exit = np.full(n_timesteps, tg)
+        # Assigning indices to zones
+        for idx, zone in enumerate(self.zones):
+            zone.index = idx
 
-            for ISHX in self.ISHXs:
-                ISHX.t_n_eft = np.full(n_timesteps, tg)
-                ISHX.t_n_exft = np.full(n_timesteps, tg)
-                ISHX.t_hp_eft = np.full(n_timesteps, tg)
+        # Initializing t_eft, t_mean, q_ghe, t_exit
+        for zone in self.zones:
+            zone.t_eft = np.full(n_timesteps, tg)
+            zone.t_exft = np.full(n_timesteps, tg)
 
-            # Assigning row_indices
-            for k, zone in enumerate(self.zones):
-                zone.row_index = k
-            for k, GHX in enumerate(self.GHXs):
-                GHX.row_index = len(self.zones) + k * 4
-            for k, ISHX in enumerate(self.ISHXs):
-                ISHX.row_index = len(self.zones) + len(self.GHXs) * 4
+        for GHX in self.GHXs:
+            GHX.t_eft = np.full(n_timesteps, tg)
+            GHX.t_mean = np.full(n_timesteps, tg)
+            GHX.t_bhw = np.full(n_timesteps, tg)
+            GHX.q_ghe = np.zeros(n_timesteps)
+            GHX.t_exit = np.full(n_timesteps, tg)
 
-            # Initializing
-            for zone in self.zones:
-                zone.P_zone_htg = np.zeros(n_timesteps)
-                zone.P_zone_clg = np.zeros(n_timesteps)
-                zone.P_zone_cp = np.zeros(n_timesteps)
-            self.P_cl_cp = np.zeros(n_timesteps)
-            for GHX in self.GHXs:
-                GHX.P_ghe_cp = np.zeros(n_timesteps)
-            for ISHX in self.ISHXs:
-                ISHX.P_ishx_cp = np.zeros(n_timesteps)
+        for ISHX in self.ISHXs:
+            ISHX.t_n_eft = np.full(n_timesteps, tg)
+            ISHX.t_n_exft = np.full(n_timesteps, tg)
+            ISHX.t_hp_eft = np.full(n_timesteps, tg)
+
+        # Assigning row_indices
+        for k, zone in enumerate(self.zones):
+            zone.row_index = k
+        for k, GHX in enumerate(self.GHXs):
+            GHX.row_index = len(self.zones) + k * 4
+        for k, ISHX in enumerate(self.ISHXs):
+            ISHX.row_index = len(self.zones) + len(self.GHXs) * 4
+
+        # Initializing
+        for zone in self.zones:
+            zone.P_zone_htg = np.zeros(n_timesteps)
+            zone.P_zone_clg = np.zeros(n_timesteps)
+            zone.P_zone_cp = np.zeros(n_timesteps)
+        self.P_cl_cp = np.zeros(n_timesteps)
+        for GHX in self.GHXs:
+            GHX.P_ghe_cp = np.zeros(n_timesteps)
+        for ISHX in self.ISHXs:
+            ISHX.P_ishx_cp = np.zeros(n_timesteps)
 
         for i in range(1, n_timesteps):  # loop over all timestep
             matrix_rows = []
@@ -768,10 +777,8 @@ class GHEHPSystem:
                 nbh = GHX.n_rows * GHX.n_cols
                 split_ratio = nbh / nbh_total
                 mass_flow_ghe = m_loop * split_ratio
-                g = self.g
-                #c_n = self.c_n[i]
                 c_n = GHX.c_n  # this is array, while using this in matrix we pick c_n[i], a single float number
-                H_n_ghe = GHX.compute_history_term(i, time_array, ts, two_pi_k, g, tg, GHX.H_n_ghe,
+                H_n_ghe = GHX.compute_history_term(i, time_array, ts, two_pi_k, self.g_bhw, tg, GHX.H_n_ghe,
                                                    GHX.total_values_ghe, q_ghe)
                 rows, rhs_values = GHX.generate_GHX_matrix_row(matrix_size, m_loop, mass_flow_ghe, cp, H_n_ghe, c_n, i)
                 for row, rhs in zip(rows, rhs_values):
@@ -816,6 +823,19 @@ class GHEHPSystem:
                 ISHX.t_n_eft[i] = X_ishx[base]
                 ISHX.t_n_exft[i] = X_ishx[base + 1]
                 ISHX.t_hp_eft[i] = X_ishx[base + 2]
+
+            # Calculating zone exit fluid temperature
+
+            for zone in self.zones:
+                q_net_htg = zone.q_net_htg()
+                t_eft = zone.t_eft[i]
+                m_zone = zone.zone_mass_flow_rate(t_eft, q_net_htg, i)
+                r1, r2 = zone.calculate_r1_r2(t_eft, i)
+                zone.t_exft[i] = (m_zone * cp * t_eft - (r1 * t_eft + r2))/(m_zone * cp)
+
+            # Calculating borehole wall temperature
+            for GHX in self.GHXs:
+                GHX.t_bhw[i] = GHX.t_mean[i] + GHX.q_ghe[i] * self.bhe_effective_resist
 
             # zone energy consumption
             for zone in self.zones:
@@ -865,10 +885,12 @@ class GHEHPSystem:
             row = []
             for zone in self.zones:
                 row.append(zone.t_eft[i])
+                row.append(zone.t_exft[i])
 
             for GHX in self.GHXs:
                 row.append(GHX.t_eft[i])
                 row.append(GHX.t_mean[i])
+                row.append(GHX.t_bhw[i])
                 row.append(GHX.q_ghe[i])
                 row.append(GHX.t_exit[i])
 
@@ -884,11 +906,13 @@ class GHEHPSystem:
 
         for j, zone in enumerate(self.zones):
             column_names.append(f"Zone{j}_t_eft")
+            column_names.append(f"Zone{j}:ExFT [C]")
 
         for j, GHX in enumerate(self.GHXs):
             column_names += [
                 f"GHX{j}_t_eft",
                 f"GHX{j}_t_mean",
+                f"GHX{j}_t_bw",
                 f"GHX{j}_q_ghe",
                 f"GHX{j}_t_exit"
             ]
@@ -909,7 +933,7 @@ class GHEHPSystem:
         self.df.index = range(1, len(self.df) + 1)
 
         # Save to CSV
-        self.df.to_csv("output_results.csv")
+        self.df.to_csv("output_results.csv", float_format="%.6f")
 
     def output_file_energy_consumption(self):
         # create csv files
@@ -1204,7 +1228,8 @@ System = GHEHPSystem()
 
 def main():
     # f1 = open("1-pipe_3ghe-6hp_system_w_pumping_station_input.txt", 'r')
-    f1 = open("1-pipe_3ghe-6hp_system_w_ISHX_input.txt", 'r')
+    f1 = open("Test_with_1000W_loads.txt", 'r')
+    # f1 = open("Test_with_1000W_loads.txt")
     data = f1.readlines()  # read the entire file as a list of strings
     f1.close()  # close the file  ... very important
 
@@ -1226,7 +1251,8 @@ def main():
 if __name__ == "__main__":
     main()
 
-
+end = time.time()
+print(f"Execution time: {end - start:.4f} seconds")
 
 
 

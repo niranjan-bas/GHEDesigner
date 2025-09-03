@@ -13,13 +13,13 @@ Building, Mediumoffice,     B3, b3z1, b3z2
 
 # Zone data
 
-# keyword, name,           connection_downstream,  ISHX_ID,  id,     nodeID,   HPmodel,  loads_file
-Zone,      space_htg/clg,  zone,                   ishx1,    b1z1,   n6,       HP1,      B1Z1.csv
-Zone,      space_htg/clg,  ISHX,                   ishx1,    b1z2,   n8,       HP4,      B1Z2.csv
-Zone,      space_htg/clg,  zone,                   None,     b2z1,   n12,      HP2,      B2Z1.csv
-Zone,      water_htg,      zone,                   None,     b2z2,   n14,      HP4,      B2Z2.csv
-Zone,      water_htg,      zone,                   None,     b3z1,   n16,      HP3,      B3Z1.csv
-Zone,      water_htg,      zone,                   None,     b3z2,   n18,      HP4,      B3Z2.csv
+# keyword, name,             ISHX_ID,  id,     nodeID,   HPmodel,  loads_file
+Zone,      space_htg/clg,    ishx1,    b1z1,   n6,       HP1,      B1Z1.csv
+Zone,      space_htg/clg,    ishx1,    b1z2,   n8,       HP4,      B1Z2.csv
+Zone,      space_htg/clg,    None,     b2z1,   n12,      HP2,      B2Z1.csv
+Zone,      water_htg,        None,     b2z2,   n14,      HP4,      B2Z2.csv
+Zone,      water_htg,        None,     b3z1,   n16,      HP3,      B3Z1.csv
+Zone,      water_htg,        None,     b3z2,   n18,      HP4,      B3Z2.csv
 
 
 #  keyword, id,   nodeID, n_rows, n_cols, row_spacing (m), col_spacing (m),  height     m_flow_ghe_design

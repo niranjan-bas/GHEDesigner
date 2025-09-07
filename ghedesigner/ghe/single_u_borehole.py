@@ -332,7 +332,6 @@ class SingleUTube(gt.pipes.SingleUTube, GHEDesignerBoreholeBase):
 
             # compute standard g-functions
             g.append(self.c_0 * ((radial_cells[CellProps.TEMP, 0] - init_temp) / heat_flux - resist_bh_effective))
-
             # compute g-functions at bh wall
             bh_wall_temp = radial_cells[CellProps.TEMP, self.bh_wall_idx]
             g_bhw.append(self.c_0 * ((bh_wall_temp - init_temp) / heat_flux))

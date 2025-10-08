@@ -8,7 +8,7 @@
   ],
   "fluid": {
     "fluid_name": "PROPYLENEGLYCOL",
-    "concentration_percent": 30,
+    "concentration_percent": 20,
     "temperature": 20
   },
   "ground-heat-exchanger": {
@@ -20,7 +20,7 @@
       "soil": {
         "conductivity": 2,
         "rho_cp": 2343493,
-        "undisturbed_temp": 6.1
+        "undisturbed_temp": 20.0
       },
       "pipe": {
         "inner_diameter": 0.03404,
@@ -46,7 +46,7 @@
         "method": "BIRECTANGLE"
       },
       "design": {
-        "flow_rate": 0.33,
+        "flow_rate": 0.089,
         "flow_type": "BOREHOLE",
         "max_eft": 35,
         "min_eft": 5

@@ -4,7 +4,7 @@ from ghedesigner.media import Grout, Soil, GHEFluid
 from ghedesigner.media import Pipe as MediaPipe   # I am importing Pipe from media as MediaPipe to avoid name conflict with my Pipe class
 from pygfunction.boreholes import Borehole
 from ghedesigner.ghe.coaxial_borehole import get_bhe_object
-from ghedesigner.ghe.gfunction import calc_g_func_for_multiple_lengths
+from ghedesigner.ghe.gfunction import calc_g_func_for_multiple_lengths, GFunction
 from ghedesigner.ghe.simulation import SimulationParameters
 from ghedesigner.enums import BHPipeType, TimestepType
 from ghedesigner.ghe.gfunction import GFunction, calc_g_func_for_multiple_lengths
@@ -52,7 +52,7 @@ class GHX:
         # Computed properties
         self.bhe = None
         self.r_b = None
-        self.gFunction = None
+        self.gFunction = GFunction
         self.mass_flow_ghe = None
         self.mass_flow_ghe_borehole = None
         self.depth = None
@@ -66,9 +66,10 @@ class GHX:
         self.t_eft = None
         self.t_mft = None
         self.q_ghe = None
-        self.t_exft= None
+        self.t_exft = None
         self.t_bw = None
         self.t_combining_node = None
+        self.sim_params = None
 
     def generate_g_function_object(self, log_time, calc_g_func_for_multiple_lengths, h_values):
         self.depth = self.bhe.b.D
@@ -286,10 +287,11 @@ class Zone:
 
         q_net_rej = q_rej - q_ext
         hp_capacity = cap_clg if q_i > 0 else cap_htg
+        hp_ratio = R_clg if q_i > 0 else R_htg
 
         # compute mass flow rates+
         
-        self.mass_flow_zone = np.abs(q_net_rej) / np.abs(hp_capacity) * m_single_hp
+        self.mass_flow_zone = np.abs(q_net_rej) / (np.abs(hp_capacity) * hp_ratio) * m_single_hp
 
         return self.mass_flow_zone
 
@@ -537,6 +539,7 @@ class GHEHPSystem:
         self.GHE_cp_efficiency = None
         self.beta_HP_cp_delta_P = None
         self.P_cl_cp = None
+        self.central_loop_delta_P = None
 
     def read_GHEHPSystem_data(self, data):
         next_matrix_line = 0
@@ -635,11 +638,14 @@ class GHEHPSystem:
                 thishpmodel.delta_P_HP = float(cells[16])
                 self.HPmodels.append(thishpmodel)
 
+            if keyword == "pressure_drop":
+                self.central_loop_delta_P = float(cells[1])
+                self.ISHX_loop_delta_P = float(cells[2])
+
             if keyword == "beta":
                 self.beta_loop = float(cells[1])
                 self.beta_HP_cp_delta_P = float(cells[2])
-                self.beta_cl_cp_delta_P = float(cells[3])
-                self.beta_ghe_cp_delta_P = float(cells[4])
+                self.beta_ghe_cp_delta_P = float(cells[3])
 
             if keyword == "efficiency":
                 self.HP_cp_efficiency = float(cells[1])
@@ -650,17 +656,17 @@ class GHEHPSystem:
         # end for line
         self.UpdateConnections()
 
-    def read_data_from_json_file(self):
-        with open("find_design_bi_rectangle_single_u_tube.json", 'r') as f:
-            self.data = json.load(f)
+    def read_data_from_json_file(self, json_data):
+        self.data = json_data
 
         # Extract input values
-        fluid_data = self.data["fluid"]
-        soil_data = self.data["ground-heat-exchanger"]["ghe1"]["soil"]
-        grout_data = self.data["ground-heat-exchanger"]["ghe1"]["grout"]
-        pipe_data = self.data["ground-heat-exchanger"]["ghe1"]["pipe"]
-        borehole_data = self.data["ground-heat-exchanger"]["ghe1"]["borehole"]
-        geometric_data = self.data["ground-heat-exchanger"]["ghe1"]["geometric_constraints"]
+        fluid_data = json_data["fluid"]
+        soil_data = json_data["ground-heat-exchanger"]["ghe1"]["soil"]
+        grout_data = json_data["ground-heat-exchanger"]["ghe1"]["grout"]
+        pipe_data = json_data["ground-heat-exchanger"]["ghe1"]["pipe"]
+        borehole_data = json_data["ground-heat-exchanger"]["ghe1"]["borehole"]
+        geometric_data = json_data["ground-heat-exchanger"]["ghe1"]["geometric_constraints"]
+        design_data = json_data["ground-heat-exchanger"]["ghe1"]["design"]
 
         # Construct objects
         fluid = (
@@ -691,10 +697,11 @@ class GHEHPSystem:
         borehole = Borehole(100.0, borehole_data["buried_depth"], borehole_data["diameter"] / 2.0, 0.0, 0.0)
 
         # Simulation parameters
-        sim_params = SimulationParameters(num_months=12)
-        sim_params.set_design_heights(geometric_data["max_height"], geometric_data["min_height"])
+        self.sim_params = SimulationParameters(num_months=12)
+        self.sim_params.set_design_heights(geometric_data["max_height"], geometric_data["min_height"])
+        self.sim_params.set_design_temps(design_data["max_eft"], design_data["min_eft"])
 
-        return fluid, pipe, grout, soil, borehole, sim_params
+        return fluid, pipe, grout, soil, borehole, self.sim_params
 
     def solveSystem(self, fluid, pipe, grout, soil, borehole, sim_params):
         # precompute all time invariant constants
@@ -746,10 +753,6 @@ class GHEHPSystem:
             GHX.H_n_ghe, GHX.total_values_ghe, GHX.q_ghe = np.full((n_timesteps), tg), np.zeros(
                 n_timesteps), np.zeros(n_timesteps)
 
-        # # Assigning indices to zones
-        # for idx, zone in enumerate(self.zones):
-        #     zone.index = idx
-
         # Initializing t_eft, t_mean, q_ghe, t_exit
         for zone in self.zones:
             zone.t_eft = np.full(n_timesteps, tg)
@@ -790,6 +793,10 @@ class GHEHPSystem:
             raise ValueError(f"Invalid configuration type: {configuration}")
 
         # Initializing
+        m_loop_array = np.zeros(n_timesteps)
+        for ISHX in self.ISHXs:
+            ISHX.m_loop_ISHX_array = np.zeros(n_timesteps)
+
         for zone in self.zones:
             zone.P_zone_htg = np.zeros(n_timesteps)
             zone.P_zone_clg = np.zeros(n_timesteps)
@@ -830,8 +837,11 @@ class GHEHPSystem:
             for ISHX in self.ISHXs:
                 ISHX.m_loop_n = ISHX.m_loop_hp * ISHX.beta_ISHX
                 total_m_loop_n += ISHX.m_loop_n
+                ISHX.m_loop_ISHX_array[i] = total_m_loop_n
 
             m_loop = (total_m_loop_n + total_hp_flow) * self.beta_loop
+            m_loop_array[i] = m_loop
+
             zone_inlet_index = self.zones[0].row_index
 
             # Generating matrix for zones connected to ISHX
@@ -848,8 +858,9 @@ class GHEHPSystem:
                         this_zone_row, rhs = zone.generate_zone_matrix_row(matrix_size, zone_inlet_index, r1,
                                                                            mass_flow_zone, cp, m_loop_zone, m_loop,
                                                                            r2, configuration)
-                        matrix_rows.append(this_zone_row)
-                        matrix_rhs.append(rhs)
+                        for row, rhs in zip(this_zone_row, rhs):
+                            matrix_rows.append(row)
+                            matrix_rhs.append(rhs)
 
             # Generating matrix for zones not connected to ISHXs for 2-pipe system
             m_loop_zone = 0
@@ -867,7 +878,7 @@ class GHEHPSystem:
                         matrix_rows.append(row)
                         matrix_rhs.append(rhs)
 
-            # Generating matrix for ground heat exchangers for 2 pipe system
+            # Generating matrix for ground heat exchangers
             m_loop_ghe = 0
             GHX_inlet_index = self.GHXs[0].row_index
             for j, GHX in enumerate(self.GHXs):
@@ -918,6 +929,11 @@ class GHEHPSystem:
                     GHX.q_ghe[i] = X[GHX.row_index + 2]
                     GHX.t_exft[i] = X[GHX.row_index + 3]
 
+                for ISHX in self.ISHXs:
+                    ISHX.t_n_eft[i] = X[ISHX.row_index]
+                    ISHX.t_n_exft[i] = X[ISHX.row_index + 1]
+                    ISHX.t_hp_eft[i] = X[ISHX.row_index + 2]
+
             # for getting values for 2-pipe system
             if self.configuration == "2-pipe":
                 for zone in self.zones:
@@ -944,11 +960,6 @@ class GHEHPSystem:
                 zone.P_zone_htg[i], zone.P_zone_clg[i], zone.P_zone_cp[i] = zone.zone_energy_consumption(t_eft, i, m_flow_zone,
                                                                                  density, cp_efficiency,
                                                                                  beta_HP_cp_delta_P, delta_P_HP)
-            # central loop energy consumption
-            beta_cl_cp_delta_P = self.beta_cl_cp_delta_P
-            delta_P_loop = beta_cl_cp_delta_P * m_loop**2
-            density = fluid.density()
-            self.P_cl_cp[i] = m_loop/(density * self.central_loop_efficiency) * delta_P_loop
 
             # ground heat exchanger energy consumption
             for GHX in self.GHXs:
@@ -966,10 +977,19 @@ class GHEHPSystem:
                 delta_P_ghe = friction_factor * length_ghe * density * velocity**2 / (2 * pipe_dia)
                 GHX.P_ghe_cp[i] = mass_flow_ghe / (density * self.GHE_cp_efficiency) * delta_P_ghe * self.beta_ghe_cp_delta_P
 
-            # isolation heat exchanger energy consumption
+        # central loop energy consumption
+        m_ref_loop = max(m_loop_array)
+        for i in range(1, n_timesteps):
+            delta_P_loop = (self.central_loop_delta_P/m_ref_loop**2)*m_loop_array[i]**2
+            density = fluid.density()
+            self.P_cl_cp[i] = m_loop_array[i]/(density * self.central_loop_efficiency) * delta_P_loop
+
+        # ISHX loop energy consumption
+        for i in range(1, n_timesteps):
             for ISHX in self.ISHXs:
-                delta_P_ISHX = beta_cl_cp_delta_P * ISHX.m_loop_n**2
-                ISHX.P_ishx_cp[i] = ISHX.m_loop_n / (density * self.ISHX_cp_efficiency) * delta_P_ISHX
+                m_ref_ISHX = max(ISHX.m_loop_ISHX_array)
+                delta_P_ISHX = (self.ISHX_loop_delta_P / m_ref_ISHX ** 2) * ISHX.m_loop_ISHX_array[i] ** 2
+                ISHX.P_ishx_cp[i] = ISHX.m_loop_ISHX_array[i] / (density * self.ISHX_cp_efficiency) * delta_P_ISHX
 
     def createOutput(self):
         if self.configuration == "1-pipe":
@@ -1397,13 +1417,17 @@ System = GHEHPSystem()
 
 
 def main():
-    f1 = open("1-pipe_3ghe-6hp_system_wo_ISHX_input.txt", 'r')
+    f1 = open("1-pipe_3ghe-6hp_system_w_ISHX_input.txt", 'r')
     data = f1.readlines()  # read the entire file as a list of strings
     f1.close()  # close the file  ... very important
 
-    System.read_GHEHPSystem_data(data)
+    f2 = open("find_design_bi_rectangle_single_u_tube.json", 'r')
+    json_data = json.load(f2)
 
-    fluid, pipe, grout, soil, borehole, sim_params = System.read_data_from_json_file()
+    System.read_GHEHPSystem_data(data)
+    System.read_data_from_json_file(json_data)
+
+    fluid, pipe, grout, soil, borehole, sim_params = System.read_data_from_json_file(json_data)
     System.solveSystem(fluid, pipe, grout, soil, borehole, sim_params)
     System.createOutput()
     System.output_file_energy_consumption()
@@ -1421,6 +1445,9 @@ if __name__ == "__main__":
 
 end = time.time()
 print(f"Execution time: {end - start:.4f} seconds")
+
+
+# Let us create functions for designing rather than only simulating, we will put it into class later
 
 
 

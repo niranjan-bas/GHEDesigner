@@ -862,7 +862,7 @@ class GHEHPSystem:
                             matrix_rows.append(row)
                             matrix_rhs.append(rhs)
 
-            # Generating matrix for zones not connected to ISHXs for 2-pipe system
+            # Generating matrix for zones not connected to ISHXs
             m_loop_zone = 0
             zone_inlet_index = self.zones[0].row_index
             for zone in self.zones:
@@ -1446,8 +1446,6 @@ if __name__ == "__main__":
 end = time.time()
 print(f"Execution time: {end - start:.4f} seconds")
 
-
-# Let us create functions for designing rather than only simulating, we will put it into class later
 
 
 

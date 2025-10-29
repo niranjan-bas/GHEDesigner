@@ -4,7 +4,6 @@ from ghedesigner.media import Grout, Soil, GHEFluid
 from ghedesigner.media import Pipe as MediaPipe   # I am importing Pipe from media as MediaPipe to avoid name conflict with my Pipe class
 from pygfunction.boreholes import Borehole
 from ghedesigner.ghe.coaxial_borehole import get_bhe_object
-from ghedesigner.ghe.gfunction import calc_g_func_for_multiple_lengths, GFunction
 from ghedesigner.ghe.simulation import SimulationParameters
 from ghedesigner.enums import BHPipeType, TimestepType
 from ghedesigner.ghe.gfunction import GFunction, calc_g_func_for_multiple_lengths
@@ -13,6 +12,8 @@ from ghedesigner.utilities import eskilson_log_times
 
 from OpenGL.GL import *
 from OpenGL_2D_class_GLFW import gl2D, gl2DCircle, gl2DText,gl2DArrow, gl2DArc
+
+from types import SimpleNamespace
 
 import json
 import time
@@ -45,6 +46,7 @@ class GHX:
         self.soil = Soil
         self.grout = Grout
         self.borehole = Borehole
+        self.g_function: GFunction
         self.fluid = None
         self.bhe_type = BHPipeType.SINGLEUTUBE
         self.split_ratio = None
@@ -52,7 +54,7 @@ class GHX:
         # Computed properties
         self.bhe = None
         self.r_b = None
-        self.gFunction = GFunction
+        self.gFunction = None
         self.mass_flow_ghe = None
         self.mass_flow_ghe_borehole = None
         self.depth = None
@@ -71,17 +73,43 @@ class GHX:
         self.t_combining_node = None
         self.sim_params = None
 
-    def generate_g_function_object(self, log_time, calc_g_func_for_multiple_lengths, h_values):
-        self.depth = self.bhe.b.D
-        self.r_b = self.bhe.b.r_b
-        self.mass_flow_ghe_borehole_design = self.mass_flow_ghe_design/self.nbh
-        h_values = [self.height]
-        coordinates_ghe = [(i * self.row_spacing, j * self.row_spacing) for i in range(int(self.n_rows)) for j in range(int(self.n_cols))]
-        self.gFunction = calc_g_func_for_multiple_lengths(
-            self.row_spacing, h_values, self.r_b, self.depth, self.mass_flow_ghe_borehole_design, self.bhe_type, log_time,
-            coordinates_ghe, self.bhe.fluid, self.bhe.pipe, self.bhe.grout, self.bhe.soil
+        # for initializing gFunction object
+        self.bore_locations = None
+        self.log_time = None
+        self.gFunction = GFunction(b=0.0, d=0.0, r_b_values={},g_lts={},log_time=[], bore_locations=[])   # All dummy values are used, because the goal is only to generate self.gFunction as an object of class GFunction so that I can initialize self.gFunction in "initialize_gFunction_object" method
+
+    def initialize_gFunction_object(self):
+        self.gFunction.bore_locations = [(i * self.row_spacing, j * self.row_spacing) for i in range(int(self.n_rows)) for j in range(int(self.n_cols))]
+        self.gFunction.log_time = eskilson_log_times()
+
+    def compute_g_functions(self, log_time):
+        # Compute g-functions for a bracketed solution, based on min and max
+        # height
+        min_height = self.sim_params.min_height
+        max_height = self.sim_params.max_height
+        avg_height = (min_height + max_height) / 2.0
+        h_values = [min_height, avg_height, max_height]
+
+        self.initialize_gFunction_object()
+        coordinates = self.gFunction.bore_locations
+        log_time = self.gFunction.log_time
+
+        g_function = calc_g_func_for_multiple_lengths(
+            self.row_spacing,
+            h_values,
+            self.bhe.b.r_b,
+            self.bhe.b.D,
+            self.bhe.m_flow_borehole,
+            self.bhe_type,
+            log_time,
+            coordinates,
+            self.bhe.fluid,
+            self.bhe.pipe,
+            self.bhe.grout,
+            self.bhe.soil,
         )
-        return self.gFunction
+
+        self.gFunction = g_function
 
     def grab_g_function(self):
         """
@@ -716,8 +744,6 @@ class GHEHPSystem:
             matrix_size = 2 * len(self.zones) + 4 * len(self.GHXs) + 3 * len(self.ISHXs)
         else:
             raise ValueError(f"Invalid configuration type: {configuration}")
-        nbh_total = sum(GHX.n_rows * GHX.n_cols for GHX in self.GHXs)
-        self.nbh_total = nbh_total
 
         for GHX in self.GHXs:
             GHX.fluid = fluid
@@ -726,25 +752,27 @@ class GHEHPSystem:
             GHX.soil = soil
             GHX.borehole = borehole
             GHX.sim_params = sim_params
+            GHX.initialize_gFunction_object()
 
         # for getting g_functions and bhe object
         for GHX in self.GHXs:
             GHX.borehole = borehole
             GHX.height = GHX.borehole.H
-            GHX.nbh = GHX.n_rows * GHX.n_cols
+            GHX.nbh = len(GHX.gFunction.bore_locations)
             GHX.mass_flow_ghe_borehole_design = GHX.mass_flow_ghe_design / GHX.nbh
             GHX.bhe = get_bhe_object(GHX.bhe_type, GHX.mass_flow_ghe_borehole_design, GHX.fluid, GHX.borehole,
                                      GHX.pipe, GHX.grout, GHX.soil)
             GHX.bhe_eq = GHX.bhe.to_single()
             GHX.bhe_eq.calc_sts_g_functions()
+            log_time = eskilson_log_times()
+            self.gFunction = GHX.compute_g_functions(log_time)
             ts = GHX.bhe_eq.t_s
             self.log_time = eskilson_log_times()
             cp = GHX.bhe.fluid.cp
             tg = GHX.bhe.soil.ugt
             borehole.H = GHX.height
-            h_values = [borehole.H]
-            self.gFunction = GHX.generate_g_function_object(self.log_time, calc_g_func_for_multiple_lengths, h_values)
-            self.g,_ = GHX.grab_g_function()
+
+            self.g, _ = GHX.grab_g_function()
             self.bhe_effective_resist = GHX.bhe.calc_effective_borehole_resistance()
             GHX.c_n = GHX.calculation_of_ghe_constant_c_n(self.g, ts, time_array, n_timesteps, self.bhe_effective_resist)
 
@@ -880,12 +908,13 @@ class GHEHPSystem:
 
             # Generating matrix for ground heat exchangers
             m_loop_ghe = 0
+            nbh_total = sum(GHX.nbh for GHX in self.GHXs)
             GHX_inlet_index = self.GHXs[0].row_index
             for j, GHX in enumerate(self.GHXs):
                 q_ghe = GHX.q_ghe[:i]  # <--- FIXED: slice of all past values, it is an array
                 two_pi_k = 2 * np.pi * GHX.soil.k
-                nbh = GHX.n_rows * GHX.n_cols
-                split_ratio = nbh / nbh_total
+                GHX.nbh = len(GHX.gFunction.bore_locations)
+                split_ratio = GHX.nbh / nbh_total
                 mass_flow_ghe = m_loop * split_ratio
                 c_n = GHX.c_n  # this is array, while using this in matrix we pick c_n[i], a single float number
                 H_n_ghe = GHX.compute_history_term(i, time_array, ts, two_pi_k, self.g, tg, GHX.H_n_ghe,
@@ -963,7 +992,7 @@ class GHEHPSystem:
 
             # ground heat exchanger energy consumption
             for GHX in self.GHXs:
-                nbh = GHX.n_rows * GHX.n_cols
+                nbh = len(GHX.gFunction.bore_locations)
                 length_ghe = 2 * GHX.height
                 split_ratio = nbh / nbh_total
                 mass_flow_ghe = m_loop * split_ratio

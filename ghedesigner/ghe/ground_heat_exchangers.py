@@ -26,6 +26,7 @@ class BaseGHE:
         pipe: Pipe,
         grout: Grout,
         soil: Soil,
+        g_function: GFunction,
         sim_params: SimulationParameters,
         hourly_extraction_ground_loads: list,
         field_type="N/A",
@@ -57,6 +58,8 @@ class BaseGHE:
         self.hourly_extraction_ground_loads = hourly_extraction_ground_loads
         self.times = np.empty((0,), dtype=np.float64)
         self.loading = None
+
+        self.gFunction = None
 
     def as_dict(self) -> dict:
         output = {

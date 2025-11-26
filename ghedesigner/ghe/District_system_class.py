@@ -82,7 +82,7 @@ class GHX:
         self.gFunction.bore_locations = [(i * self.row_spacing, j * self.row_spacing) for i in range(int(self.n_rows)) for j in range(int(self.n_cols))]
         self.gFunction.log_time = eskilson_log_times()
 
-    def compute_g_functions(self, log_time):
+    def compute_g_functions(self):
         # Compute g-functions for a bracketed solution, based on min and max
         # height
         min_height = self.sim_params.min_height
@@ -90,7 +90,6 @@ class GHX:
         avg_height = (min_height + max_height) / 2.0
         h_values = [min_height, avg_height, max_height]
 
-        self.initialize_gFunction_object()
         coordinates = self.gFunction.bore_locations
         log_time = self.gFunction.log_time
 
@@ -302,24 +301,13 @@ class Zone:
         cap_htg = hp.c1_htg * t_eft ** 2 + hp.c2_htg * t_eft + hp.c3_htg
         cap_clg = hp.c1_clg * t_eft ** 2 + hp.c2_clg * t_eft + hp.c3_clg
 
-        R_clg = hp.a_clg * t_eft ** 2 + hp.b_clg * t_eft + hp.c_clg
-        R_htg = hp.a_htg * t_eft ** 2 + hp.b_htg * t_eft + hp.c_htg
+        if cap_clg == 0:
+            rtf = abs(self.h[i]/cap_htg)
+        else:
+            rtf = abs(self.h[i]/cap_htg) + abs(self.c[i]/cap_clg)
 
         m_single_hp = hp.m_single_hp
-
-        q_i = self.c[i] - self.h[i]
-        q_i_clg = self.c[i]
-        q_i_htg = self.h[i]
-        q_rej = q_i_clg * R_clg
-        q_ext = q_i_htg * R_htg
-
-        q_net_rej = q_rej - q_ext
-        hp_capacity = cap_clg if q_i > 0 else cap_htg
-        hp_ratio = R_clg if q_i > 0 else R_htg
-
-        # compute mass flow rates+
-        
-        self.mass_flow_zone = np.abs(q_net_rej) / (np.abs(hp_capacity) * hp_ratio) * m_single_hp
+        self.mass_flow_zone = rtf * m_single_hp
 
         return self.mass_flow_zone
 
@@ -401,7 +389,7 @@ class Zone:
 
         return rows, rhs_list
 
-    def zone_energy_consumption(self, t_eft, i, m_flow_zone, density, cp_efficiency, beta_HP_cp_delta_P, delta_P_HP):
+    def zone_energy_consumption(self, t_eft, i, m_flow_zone, density, cp_efficiency, beta_HP_delta_P, delta_P_HP):
 
         # Extract loads
         htg_load = self.df_zone["HPHtgLd_W"].iloc[i] if "HPHtgLd_W" in self.df_zone.columns else 0.0
@@ -424,7 +412,7 @@ class Zone:
         Power_zone_clg = clg_load * (ratio_clg - 1)
 
         # power consumed by circulating pump
-        Power_zone_cp = m_flow_zone / (density * cp_efficiency) * beta_HP_cp_delta_P * delta_P_HP
+        Power_zone_cp = m_flow_zone / (density * cp_efficiency) * beta_HP_delta_P * delta_P_HP
 
         return Power_zone_htg, Power_zone_clg, Power_zone_cp
 
@@ -552,7 +540,7 @@ class GHEHPSystem:
         self.bhe_eq = None
         self.c_n = None
         self.m_loop = None
-        self.beta_loop = None
+        self.beta_CL_flow = None
         self.beta_ISHX_loop = None
         self.beta_cl_cp_delta_P = None
 
@@ -565,9 +553,9 @@ class GHEHPSystem:
         self.HP_cp_efficiency = None
         self.ISHX_cp_efficiency = None
         self.GHE_cp_efficiency = None
-        self.beta_HP_cp_delta_P = None
+        self.beta_HP_delta_P = None
         self.P_cl_cp = None
-        self.central_loop_delta_P = None
+        self.CL_P_per_m = None
 
     def read_GHEHPSystem_data(self, data):
         next_matrix_line = 0
@@ -667,19 +655,25 @@ class GHEHPSystem:
                 self.HPmodels.append(thishpmodel)
 
             if keyword == "pressure_drop":
-                self.central_loop_delta_P = float(cells[1])
-                self.ISHX_loop_delta_P = float(cells[2])
+                self.CL_P_per_m = float(cells[1])
+                self.delta_P_ref_ISHX = float(cells[2])
 
             if keyword == "beta":
-                self.beta_loop = float(cells[1])
-                self.beta_HP_cp_delta_P = float(cells[2])
-                self.beta_ghe_cp_delta_P = float(cells[3])
+                self.beta_CL_flow = float(cells[1])
+                self.beta_ISHX_HP_flow = float(cells[2])
+                self.beta_ISHX_N_flow = float(cells[3])
+                self.beta_HP_delta_P = float(cells[4])
+                self.beta_GHE_delta_P = float(cells[5])
+                self.beta_ISHX_delta_P = float(cells[6])
 
             if keyword == "efficiency":
                 self.HP_cp_efficiency = float(cells[1])
                 self.ISHX_cp_efficiency = float(cells[2])
                 self.GHE_cp_efficiency = float(cells[3])
-                self.central_loop_efficiency = float(cells[4])
+                self.CL_efficiency = float(cells[4])
+
+            if keyword == "length":
+                self.length_CL = float(cells[1])
 
         # end for line
         self.UpdateConnections()
@@ -765,7 +759,7 @@ class GHEHPSystem:
             GHX.bhe_eq = GHX.bhe.to_single()
             GHX.bhe_eq.calc_sts_g_functions()
             log_time = eskilson_log_times()
-            self.gFunction = GHX.compute_g_functions(log_time)
+            self.gFunction = GHX.compute_g_functions()
             ts = GHX.bhe_eq.t_s
             self.log_time = eskilson_log_times()
             cp = GHX.bhe.fluid.cp
@@ -849,7 +843,7 @@ class GHEHPSystem:
                         q_net_clg = zone.q_net_clg()
                         m_zone = zone.zone_mass_flow_rate(t_eft, i)
                         total_hp_flow_ISHX += m_zone
-                        ISHX.m_loop_hp = total_hp_flow_ISHX * self.beta_loop
+                        ISHX.m_loop_hp = total_hp_flow_ISHX * self.beta_ISHX_HP_flow
 
             # Calculating total hp flows in heat pumps connected directly to loop
             total_hp_flow = 0
@@ -863,11 +857,11 @@ class GHEHPSystem:
 
             total_m_loop_n = 0
             for ISHX in self.ISHXs:
-                ISHX.m_loop_n = ISHX.m_loop_hp * ISHX.beta_ISHX
+                ISHX.m_loop_n = ISHX.m_loop_hp * self.beta_ISHX_N_flow
                 total_m_loop_n += ISHX.m_loop_n
                 ISHX.m_loop_ISHX_array[i] = total_m_loop_n
 
-            m_loop = (total_m_loop_n + total_hp_flow) * self.beta_loop
+            m_loop = (total_m_loop_n + total_hp_flow) * self.beta_CL_flow
             m_loop_array[i] = m_loop
 
             zone_inlet_index = self.zones[0].row_index
@@ -898,7 +892,7 @@ class GHEHPSystem:
                     t_eft = zone.t_eft[i - 1]
                     r1, r2 = zone.calculate_r1_r2(t_eft, i)
                     mass_flow_zone = zone.zone_mass_flow_rate(t_eft, i)
-                    m_loop = (total_m_loop_n + total_hp_flow) * self.beta_loop
+                    m_loop = (total_m_loop_n + total_hp_flow) * self.beta_CL_flow
                     m_loop_zone += mass_flow_zone
                     this_zone_row, rhs = zone.generate_zone_matrix_row(matrix_size, zone_inlet_index, r1, mass_flow_zone, cp, m_loop_zone, m_loop, r2, configuration)
 
@@ -935,7 +929,7 @@ class GHEHPSystem:
                 C_hp = ISHX.m_loop_hp * cp
                 C_min = min(C_n, C_hp)
                 m_loop_n = ISHX.m_loop_n
-                m_loop = (total_m_loop_n + total_hp_flow) * self.beta_loop
+                m_loop = (total_m_loop_n + total_hp_flow) * self.beta_CL_flow
                 rows, rhs_values = ISHX.generate_ISHX_matrix_row(matrix_size, C_n, C_hp, effec, C_min, m_loop, cp, m_loop_n)
                 for row, rhs in zip(rows, rhs_values):
                     matrix_rows.append(row)
@@ -983,12 +977,11 @@ class GHEHPSystem:
                 t_eft = zone.t_eft[i - 1]
                 m_flow_zone = zone.zone_mass_flow_rate(t_eft, i)
                 cp_efficiency = self.HP_cp_efficiency
-                beta_HP_cp_delta_P = self.beta_HP_cp_delta_P
                 delta_P_HP = zone.HP.delta_P_HP
                 density = fluid.density()
                 zone.P_zone_htg[i], zone.P_zone_clg[i], zone.P_zone_cp[i] = zone.zone_energy_consumption(t_eft, i, m_flow_zone,
                                                                                  density, cp_efficiency,
-                                                                                 beta_HP_cp_delta_P, delta_P_HP)
+                                                                                 self.beta_HP_delta_P, delta_P_HP)
 
             # ground heat exchanger energy consumption
             for GHX in self.GHXs:
@@ -1003,22 +996,22 @@ class GHEHPSystem:
                 A = 2.457 * np.log((7/Re_n)**0.9 + 0.27 * (roughness/pipe_dia))**16
                 B = (37530/Re_n)**16
                 friction_factor = 8 * ((8/Re_n)**12 + (A + B)**-1.5)**(1/12)
-                delta_P_ghe = friction_factor * length_ghe * density * velocity**2 / (2 * pipe_dia)
-                GHX.P_ghe_cp[i] = mass_flow_ghe / (density * self.GHE_cp_efficiency) * delta_P_ghe * self.beta_ghe_cp_delta_P
+                delta_P_GHE = friction_factor * length_ghe * density * velocity**2 / (2 * pipe_dia)
+                GHX.P_ghe_cp[i] = mass_flow_ghe / (density * self.GHE_cp_efficiency) * delta_P_GHE * self.beta_GHE_delta_P
 
         # central loop energy consumption
         m_ref_loop = max(m_loop_array)
+        CL_delta_P = self.CL_P_per_m * self.length_CL
         for i in range(1, n_timesteps):
-            delta_P_loop = (self.central_loop_delta_P/m_ref_loop**2)*m_loop_array[i]**2
-            density = fluid.density()
-            self.P_cl_cp[i] = m_loop_array[i]/(density * self.central_loop_efficiency) * delta_P_loop
+            delta_P_loop = (CL_delta_P/m_ref_loop**2)*m_loop_array[i]**2
+            self.P_cl_cp[i] = m_loop_array[i] / (density * self.CL_efficiency) * delta_P_loop
 
         # ISHX loop energy consumption
         for i in range(1, n_timesteps):
             for ISHX in self.ISHXs:
                 m_ref_ISHX = max(ISHX.m_loop_ISHX_array)
-                delta_P_ISHX = (self.ISHX_loop_delta_P / m_ref_ISHX ** 2) * ISHX.m_loop_ISHX_array[i] ** 2
-                ISHX.P_ishx_cp[i] = ISHX.m_loop_ISHX_array[i] / (density * self.ISHX_cp_efficiency) * delta_P_ISHX
+                delta_P_ISHX = (self.delta_P_ref_ISHX / m_ref_ISHX ** 2) * ISHX.m_loop_ISHX_array[i] ** 2
+                ISHX.P_ishx_cp[i] = ISHX.m_loop_ISHX_array[i] / (density * self.ISHX_cp_efficiency) * delta_P_ISHX * self.beta_ISHX_delta_P
 
     def createOutput(self):
         if self.configuration == "1-pipe":

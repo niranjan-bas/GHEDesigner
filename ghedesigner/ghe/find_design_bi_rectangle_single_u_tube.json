@@ -42,7 +42,7 @@
         "b_max_x": 5,
         "b_max_y": 5,
         "max_height": 100,
-        "min_height": 100,
+        "min_height": 65,
         "method": "BIRECTANGLE"
       },
       "design": {

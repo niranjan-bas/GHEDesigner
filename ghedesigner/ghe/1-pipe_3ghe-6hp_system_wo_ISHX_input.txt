@@ -25,9 +25,9 @@ Zone,      water_htg,       None,     b3z2,  n12,           None,          HP4, 
 
 
 #  keyword, id,    inlet_nodeID, outlet_nodeID, n_rows, n_cols, row_spacing (m), col_spacing (m),  height     m_flow_ghe_design
-GHX,        ghe1,  n16,          None,          15,     10,     5,               5, 		       100,       50.63
-GHX,        ghe2,  n18,          None,          10,     8,      5,               5,                100,       27
-GHX,        ghe3,  n20,          None,          10,     7,      5,               5,                100,       23.63
+GHX,        ghe1,  n16,          None,          15,     10,     5,               5, 		       110,       50.63
+GHX,        ghe2,  n18,          None,          10,     8,      5,               5,                110,       27
+GHX,        ghe3,  n20,          None,          10,     7,      5,               5,                110,       23.63
 
 
 # nodes data
@@ -92,17 +92,19 @@ HPmodel,   HP_WtW, HP4, -0.0000606, 0.0051,  0.692, 0,       0,       0,    -1.1
 
 # System constants
 
-# keyword,            central_loop_delta_P,      ISHX_loop_delta_P
-pressure_drop,        76472,                     50000
+# keyword,            CL_P/m,          delta_P_ref_ISHX
+pressure_drop,         100,                      50000
 
-
-# keyword,       beta_loop,    beta_HP_cp_delta_P,       beta_ghe_cp_delta_P
-beta,            1.5,           1.2,                     1.2
+# keyword,       beta_CL_flow,   beta_ISHX_HP_flow,    beta_ISHX_N_flow,     beta_HP_delta_P,    beta_GHE_delta_P,     beta_ISHX_delta_P
+beta,            1.5,            1.5,                   1.0,                   1.2,                1.2,                  1.2
 
 # Circulating pump efficiency
 
-# keyword,      HP_cp_efficiency,    ISHX_cp_efficiency,   GHE_cp_efficiency,    central_loop_efficiency
-efficiency,     0.2,                 0.2,                 0.2,                   0.2
+# keyword,      HP_cp_efficiency,    ISHX_cp_efficiency,   GHE_cp_efficiency,     CL_efficiency
+efficiency,     0.2,                 0.2,                  0.2,                   0.2
+
+# length of central loop
+length,        200
 
 
 

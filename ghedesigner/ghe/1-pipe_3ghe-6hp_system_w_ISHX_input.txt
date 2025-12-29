@@ -30,8 +30,8 @@ GHX,        ghe2,   n24,            None,            10,       8,        5,     
 GHX,        ghe3,   n26,            None,            10,       7,        5,               5,                100,       23.63
 
 
-# keyword,   name,            id,     node_network_inlet_ID,    node_HP_inlet_ID,       node_HP_outlet_ID,    beta_ishx,   effectiveness,     zoneID
-ISHX,        counter_flow,   ishx1,   n2,                       n10,                    n3,                   1,           0.8,               b1z1, b1z2
+# keyword,   name,            id,     node_network_inlet_ID,    node_network_outlet_ID,    node_HP_inlet_ID,       node_HP_outlet_ID,    beta_ishx,   effectiveness,     zoneID
+ISHX,        counter_flow,   ishx1,   n2,                       None,                       n10,                    n3,                   1,           0.8,               b1z1, b1z2
 
 
 # nodes data
@@ -122,15 +122,6 @@ efficiency,     0.2,                 0.2,                  0.2,                 
 
 # length of central loop
 length,        200
-
-
-
-
-
-
-
-
-
 
 
 

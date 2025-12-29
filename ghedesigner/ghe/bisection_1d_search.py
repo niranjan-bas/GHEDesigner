@@ -10,6 +10,8 @@ from ghedesigner.ghe.simulation import SimulationParameters
 from ghedesigner.media import GHEFluid, Grout, Pipe, Soil
 from ghedesigner.utilities import borehole_spacing, check_bracket, eskilson_log_times, sign
 
+# my class import
+from District_system_class import GHEHPSystem
 
 class Bisection1D:
     def __init__(

@@ -1546,11 +1546,11 @@ System = GHEHPSystem()
 
 
 def main():
-    f1 = open("2-pipe_3ghe-6hp_system_w_ISHX_input.txt", 'r')
+    f1 = open("input_files/1-pipe_3ghe-6hp_system_w_ISHX_input.txt", 'r')
     data = f1.readlines()  # read the entire file as a list of strings
     f1.close()  # close the file  ... very important
 
-    f2 = open("find_design_bi_rectangle_single_u_tube.json", 'r')
+    f2 = open("input_files/find_design_bi_rectangle_single_u_tube.json", 'r')
     json_data = json.load(f2)
 
     System.read_GHEHPSystem_data(data)

@@ -70,7 +70,7 @@ class GHX:
         self.q_ghe = None
         self.t_exft = None
         self.t_bw = None
-        self.t_combining_node = None
+        self.t_merging_node = None
         self.sim_params = None
 
         # for initializing gFunction object
@@ -278,7 +278,7 @@ class Zone:
 
         self.t_eft = None
         self.t_exft = None
-        self.t_combining_node = None
+        self.t_merging_node = None
 
         self.h = None
         self.c = None
@@ -819,7 +819,7 @@ class GHEHPSystem:
         for zone in self.zones:
             zone.t_eft = np.full(n_timesteps, tg)
             zone.t_exft = np.full(n_timesteps, tg)
-            zone.t_combining_node = np.full(n_timesteps, tg)
+            zone.t_merging_node = np.full(n_timesteps, tg)
 
         for GHX in self.GHXs:
             GHX.t_eft = np.full(n_timesteps, tg)
@@ -827,7 +827,7 @@ class GHEHPSystem:
             GHX.t_bhw = np.full(n_timesteps, tg)
             GHX.q_ghe = np.zeros(n_timesteps)
             GHX.t_exft = np.full(n_timesteps, tg)
-            GHX.t_combining_node = np.full(n_timesteps, tg)
+            GHX.t_merging_node = np.full(n_timesteps, tg)
 
         for ISHX in self.ISHXs:
             ISHX.t_n_eft = np.full(n_timesteps, tg)
@@ -1031,7 +1031,7 @@ class GHEHPSystem:
                 for zone in self.zones:
                     zone.t_eft[i] = X[zone.inlet_index]
                     zone.t_exft[i] = X[zone.row_index + 1]
-                    zone.t_combining_node[i] = X[zone.downstream_device.row_index]
+                    zone.t_merging_node[i] = X[zone.downstream_device.row_index]
 
                 for GHX in self.GHXs:
                     GHX.t_eft[i] = X[GHX_inlet_index]
@@ -1039,9 +1039,9 @@ class GHEHPSystem:
                     GHX.q_ghe[i] = X[GHX.row_index + 2]
                     GHX.t_exft[i] = X[GHX.row_index + 3]
                     if GHX.downstream_device.type == "GHX":
-                        GHX.t_combining_node[i] = X[GHX.downstream_device.row_index]
+                        GHX.t_merging_node[i] = X[GHX.downstream_device.row_index]
                     else:
-                        GHX.t_combining_node[i] = X[GHX.downstream_device.inlet_index]
+                        GHX.t_merging_node[i] = X[GHX.downstream_device.inlet_index]
 
                 for ISHX in self.ISHXs:
                     ISHX.t_n_exft[i] = X[ISHX.row_index]
@@ -1154,14 +1154,14 @@ class GHEHPSystem:
                 for zone in self.zones:
                     row.append(zone.t_eft[i])
                     row.append(zone.t_exft[i])
-                    row.append(zone.t_combining_node[i])
+                    row.append(zone.t_merging_node[i])
 
                 for GHX in self.GHXs:
                     row.append(GHX.t_eft[i])
                     row.append(GHX.t_mft[i])
                     row.append(GHX.q_ghe[i])
                     row.append(GHX.t_exft[i])
-                    row.append(GHX.t_combining_node[i])
+                    row.append(GHX.t_merging_node[i])
 
                 for ISHX in self.ISHXs:
                     row.append(ISHX.t_n_exft[i])
@@ -1259,7 +1259,7 @@ class GHEHPSystem:
         for pipe in self.pipes:
             pipe.input = FindItemByID(pipe.node_in_name, self.nodes)
             pipe.output = FindItemByID(pipe.node_out_name, self.nodes)
-            if pipe.type == "1way":
+            if pipe.type == "main":
                 pipe.input.output = pipe
                 pipe.output.input = pipe
             elif pipe.type == "branch":
@@ -1310,18 +1310,18 @@ class GHEHPSystem:
 
         for GHX in self.GHXs:
 
-            # find the first upstream mixing node
+            # find the first upstream branching node
             device = GHX.input
-            while device.type != "mixing":
+            while device.type != "branching":
                 device = device.input
 
-            # find the second upstream mixing node
+            # find the second upstream branching node
             device = device.input
-            while device.type != "mixing" and device.type != "combining":
+            while device.type != "branching" and device.type != "merging":
                 device = device.input
 
             # find the upstream device
-            if device.type == "mixing":
+            if device.type == "branching":
                 device = device.diversion
                 while device.type != "GHX" and device.type != "zone":
                     device = device.output
@@ -1336,22 +1336,22 @@ class GHEHPSystem:
         # finding upstream and downstream device for zones
 
         for zone in self.zones:
-            # find the first upstream mixing node
+            # find the first upstream branching node
             device = zone.input
-            while device.type != "mixing":
+            while device.type != "branching":
                 device = device.input
 
-            # find the second upstream mixing node or upstream device, if it is connected to ISHX
+            # find the second upstream branching node or upstream device, if it is connected to ISHX
             device = device.input
-            while device.type != "mixing" and device.type != "device" and device.type != "combining":
+            while device.type != "branching" and device.type != "device" and device.type != "merging":
                 device = device.input
 
             # find the upstream device
-            if device.type == "mixing":
+            if device.type == "branching":
                 device = device.diversion
                 while device.type != "GHX" and device.type != "zone" and device.type != "ISHX":
                     device = device.output
-            elif device.type == "combining":
+            elif device.type == "merging":
                 device = device.merger
                 while device.type != "GHX":
                     device = device.input
@@ -1366,16 +1366,16 @@ class GHEHPSystem:
         for ISHX in self.ISHXs:
             # find first upstream node
             device = ISHX.input
-            while device.type != "mixing":
+            while device.type != "branching":
                 device = device.input
 
-            # find the second upstream mixing node
+            # find the second upstream branching node
             device = device.input
-            while device.type != "mixing" and device.type != "combining":
+            while device.type != "branching" and device.type != "merging":
                 device = device.input
 
             # finding upstream device
-            if device.type == "mixing":
+            if device.type == "branching":
                 device = device.diversion
                 while device.type != "GHX" and device.type != "zone":
                     device = device.output
@@ -1391,12 +1391,12 @@ class GHEHPSystem:
 
         for ISHX in self.ISHXs:
             device = ISHX.HP_input
-            # finding first upstream mixing node
-            while device.type != "mixing" and device.type != "combining":
+            # finding first upstream branching node
+            while device.type != "branching" and device.type != "merging":
                 device = device.input
 
             # finding upstream device
-            if device.type == "mixing":
+            if device.type == "branching":
                 device = device.diversion
                 while device.type != "zone":
                     device = device.output
@@ -1413,8 +1413,8 @@ class GHEHPSystem:
         for ISHX in self.ISHXs:
             device = ISHX.HP_output
 
-            # finding first mixing node
-            while device.type != "mixing":
+            # finding first branching node
+            while device.type != "branching":
                 device = device.output
 
             # finding downstream device
@@ -1482,7 +1482,7 @@ class GHEHPSystem:
         glLineWidth(3)
 
         for pipe in pipes:
-            if pipe.type == "1way":
+            if pipe.type == "main":
                 glColor3f(0,0,1)
             elif pipe.type == "branch":
                 glColor3f(0,1,0)
@@ -1497,7 +1497,7 @@ class GHEHPSystem:
         # Drawing arrows
         glLineWidth(3)
         for pipe in pipes:
-            if pipe.type == "1way":
+            if pipe.type == "main":
                 glColor3f(0, 0, 1)
                 xtip, ytip = pipe.output.x, pipe.output.y
                 xstart, ystart = pipe.input.x, pipe.input.y
@@ -1520,11 +1520,11 @@ class GHEHPSystem:
         glLineWidth(3)
         radius = 0.5
         for node in nodes:
-            if node.type == "mixing":
+            if node.type == "branching":
                 glColor3f(1, 0, 0)
             elif node.type == "simple":
                 glColor3f(0,1, 0)
-            elif node.type == "combining":
+            elif node.type == "merging":
                 glColor3f(1, 1, 1)
             else:
                 glColor3f(0, 0, 1)
@@ -1546,7 +1546,7 @@ System = GHEHPSystem()
 
 
 def main():
-    f1 = open("input_files/1-pipe_3ghe-6hp_system_w_ISHX_input.txt", 'r')
+    f1 = open("input_files/2-pipe_3ghe-6hp_system_w_ISHX_input.txt", 'r')
     data = f1.readlines()  # read the entire file as a list of strings
     f1.close()  # close the file  ... very important
 

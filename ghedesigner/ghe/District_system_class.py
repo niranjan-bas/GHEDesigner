@@ -20,10 +20,10 @@ import time
 
 start = time.time()
 
-class GHX:
+class GHE:
     def __init__(self):
         self.ID = None
-        self.type = "GHX"
+        self.type = "GHE"
         self.nodeID = None
         self.input = None
         self.n_rows = None
@@ -159,7 +159,7 @@ class GHX:
 
     def compute_history_term(self, i, time_array, ts, two_pi_k, g, tg, H_n_ghe, total_values_ghe, q_ghe):
         """
-        Computes the history term H_n for this GHX at time index `i`.
+        Computes the history term H_n for this GHE at time index `i`.
         Updates self.total_values_ghe and self.H_n_ghe in place.
         """
         if i == 0:
@@ -187,7 +187,7 @@ class GHX:
         )
         return H_n_ghe[i]
 
-    def generate_GHX_matrix_row(self, matrix_size, c_n, i, GHX_inlet_index, mass_flow_ghe, cp, m_loop_ghe, H_n_ghe, m_loop, configuration):
+    def generate_GHE_matrix_row(self, matrix_size, c_n, i, GHE_inlet_index, mass_flow_ghe, cp, m_loop_ghe, H_n_ghe, m_loop, configuration):
         row1 = np.zeros(matrix_size)
         row2 = np.zeros(matrix_size)
         row3 = np.zeros(matrix_size)
@@ -219,17 +219,17 @@ class GHX:
             row1[row_index + 2] = -c_n[i]
 
             row2[row_index + 1] = 2
-            row2[GHX_inlet_index] = -1
+            row2[GHE_inlet_index] = -1
             row2[row_index + 3] = -1
 
-            row3[GHX_inlet_index] = mass_flow_ghe * cp
+            row3[GHE_inlet_index] = mass_flow_ghe * cp
             row3[row_index + 3] = -mass_flow_ghe * cp
             row3[row_index + 2] = -self.height * (self.n_rows * self.n_cols)
 
             row4[row_index] = (m_loop_ghe - mass_flow_ghe) * cp
             row4[row_index + 3] = mass_flow_ghe * cp
 
-            if self.downstream_device.type == "GHX":
+            if self.downstream_device.type == "GHE":
                 row4[neighbour_index] = -m_loop_ghe * cp
             else:
                 row4[self.downstream_device.inlet_index] = -m_loop_ghe * cp
@@ -363,7 +363,7 @@ class Zone:
         if configuration == "1-pipe":
             row = np.zeros(matrix_size)
             row[self.row_index] = 1 + r1/(m_loop * cp)
-            if self.downstream_device.type in ("zone", "GHX"):
+            if self.downstream_device.type in ("zone", "GHE"):
                 row[neighbour_index] = -1
             else:
                 row[neighbour_index + 2] = -1
@@ -551,7 +551,7 @@ class GHEHPSystem:
     def __init__(self):
         self.title = None
         self.configuration = None
-        self.GHXs = []
+        self.GHEs = []
         self.buildings = []
         self.zones = []
         self.nodes = []
@@ -611,20 +611,20 @@ class GHEHPSystem:
             if keyword == 'title':
                 self.title = cells[1].replace("'", "")
 
-            if keyword == 'ghx':
-                thisghx = GHX()
-                thisghx.ID = str(cells[1])
-                thisghx.inlet_nodeID = str(cells[2])
-                thisghx.outlet_nodeID = str(cells[3])
-                thisghx.n_rows = float(cells[4])
-                thisghx.n_cols = float(cells[5])
-                thisghx.row_spacing = float(cells[6])
-                thisghx.col_spacing = float(cells[7])
-                thisghx.height = float(cells[8])
-                thisghx.mass_flow_ghe_design = float(cells[9])
-                thisghx.matrix_line = next_matrix_line
+            if keyword == 'ghe':
+                thisghe = GHE()
+                thisghe.ID = str(cells[1])
+                thisghe.inlet_nodeID = str(cells[2])
+                thisghe.outlet_nodeID = str(cells[3])
+                thisghe.n_rows = float(cells[4])
+                thisghe.n_cols = float(cells[5])
+                thisghe.row_spacing = float(cells[6])
+                thisghe.col_spacing = float(cells[7])
+                thisghe.height = float(cells[8])
+                thisghe.mass_flow_ghe_design = float(cells[9])
+                thisghe.matrix_line = next_matrix_line
                 next_matrix_line += 4
-                self.GHXs.append(thisghx)
+                self.GHEs.append(thisghe)
 
             if keyword == 'building':
                 thisbuilding = Building()
@@ -775,44 +775,44 @@ class GHEHPSystem:
         configuration = self.configuration
 
         if configuration == "1-pipe":
-            matrix_size = len(self.zones) + 4 * len(self.GHXs) + 3 * len(self.ISHXs)
+            matrix_size = len(self.zones) + 4 * len(self.GHEs) + 3 * len(self.ISHXs)
         elif configuration == "2-pipe":
-            matrix_size = 2 * len(self.zones) + 4 * len(self.GHXs) + 2 * len(self.ISHXs)
+            matrix_size = 2 * len(self.zones) + 4 * len(self.GHEs) + 2 * len(self.ISHXs)
         else:
             raise ValueError(f"Invalid configuration type: {configuration}")
 
-        for GHX in self.GHXs:
-            GHX.fluid = fluid
-            GHX.pipe = pipe
-            GHX.grout = grout
-            GHX.soil = soil
-            GHX.borehole = borehole
-            GHX.sim_params = sim_params
-            GHX.initialize_gFunction_object()
+        for GHE in self.GHEs:
+            GHE.fluid = fluid
+            GHE.pipe = pipe
+            GHE.grout = grout
+            GHE.soil = soil
+            GHE.borehole = borehole
+            GHE.sim_params = sim_params
+            GHE.initialize_gFunction_object()
 
         # for getting g_functions and bhe object
-        for GHX in self.GHXs:
-            GHX.borehole.H = GHX.height
-            GHX.nbh = len(GHX.gFunction.bore_locations)
-            GHX.mass_flow_ghe_borehole_design = GHX.mass_flow_ghe_design / GHX.nbh
-            GHX.bhe = get_bhe_object(GHX.bhe_type, GHX.mass_flow_ghe_borehole_design, GHX.fluid, GHX.borehole,
-                                     GHX.pipe, GHX.grout, GHX.soil)
-            GHX.bhe_eq = GHX.bhe.to_single()
-            GHX.bhe_eq.calc_sts_g_functions()
+        for GHE in self.GHEs:
+            GHE.borehole.H = GHE.height
+            GHE.nbh = len(GHE.gFunction.bore_locations)
+            GHE.mass_flow_ghe_borehole_design = GHE.mass_flow_ghe_design / GHE.nbh
+            GHE.bhe = get_bhe_object(GHE.bhe_type, GHE.mass_flow_ghe_borehole_design, GHE.fluid, GHE.borehole,
+                                     GHE.pipe, GHE.grout, GHE.soil)
+            GHE.bhe_eq = GHE.bhe.to_single()
+            GHE.bhe_eq.calc_sts_g_functions()
             log_time = eskilson_log_times()
-            self.gFunction = GHX.compute_g_functions()
-            ts = GHX.bhe_eq.t_s
+            self.gFunction = GHE.compute_g_functions()
+            ts = GHE.bhe_eq.t_s
             self.log_time = eskilson_log_times()
-            cp = GHX.bhe.fluid.cp
-            tg = GHX.bhe.soil.ugt
+            cp = GHE.bhe.fluid.cp
+            tg = GHE.bhe.soil.ugt
 
-            GHX.g, _ = GHX.grab_g_function()
-            GHX.bhe_effective_resist = GHX.bhe.calc_effective_borehole_resistance()
-            GHX.c_n = GHX.calculation_of_ghe_constant_c_n(GHX.g, ts, time_array, n_timesteps, GHX.bhe_effective_resist)
+            GHE.g, _ = GHE.grab_g_function()
+            GHE.bhe_effective_resist = GHE.bhe.calc_effective_borehole_resistance()
+            GHE.c_n = GHE.calculation_of_ghe_constant_c_n(GHE.g, ts, time_array, n_timesteps, GHE.bhe_effective_resist)
 
         # Initializing the values
-        for GHX in self.GHXs:
-            GHX.H_n_ghe, GHX.total_values_ghe, GHX.q_ghe = np.full((n_timesteps), tg), np.zeros(
+        for GHE in self.GHEs:
+            GHE.H_n_ghe, GHE.total_values_ghe, GHE.q_ghe = np.full((n_timesteps), tg), np.zeros(
                 n_timesteps), np.zeros(n_timesteps)
 
         # Initializing t_eft, t_mean, q_ghe, t_exit
@@ -821,13 +821,13 @@ class GHEHPSystem:
             zone.t_exft = np.full(n_timesteps, tg)
             zone.t_merging_node = np.full(n_timesteps, tg)
 
-        for GHX in self.GHXs:
-            GHX.t_eft = np.full(n_timesteps, tg)
-            GHX.t_mft = np.full(n_timesteps, tg)
-            GHX.t_bhw = np.full(n_timesteps, tg)
-            GHX.q_ghe = np.zeros(n_timesteps)
-            GHX.t_exft = np.full(n_timesteps, tg)
-            GHX.t_merging_node = np.full(n_timesteps, tg)
+        for GHE in self.GHEs:
+            GHE.t_eft = np.full(n_timesteps, tg)
+            GHE.t_mft = np.full(n_timesteps, tg)
+            GHE.t_bhw = np.full(n_timesteps, tg)
+            GHE.q_ghe = np.zeros(n_timesteps)
+            GHE.t_exft = np.full(n_timesteps, tg)
+            GHE.t_merging_node = np.full(n_timesteps, tg)
 
         for ISHX in self.ISHXs:
             ISHX.t_n_eft = np.full(n_timesteps, tg)
@@ -838,18 +838,18 @@ class GHEHPSystem:
         if configuration == "1-pipe":
             for k, zone in enumerate(self.zones):
                 zone.row_index = k
-            for k, GHX in enumerate(self.GHXs):
-                GHX.row_index = len(self.zones) + k * 4
+            for k, GHE in enumerate(self.GHEs):
+                GHE.row_index = len(self.zones) + k * 4
             for k, ISHX in enumerate(self.ISHXs):
-                ISHX.row_index = len(self.zones) + len(self.GHXs) * 4 + k * 3
+                ISHX.row_index = len(self.zones) + len(self.GHEs) * 4 + k * 3
 
         elif configuration == "2-pipe":
             for k, zone in enumerate(self.zones):
                 zone.row_index = k * 2
-            for k, GHX in enumerate(self.GHXs):
-                GHX.row_index = 2 * len(self.zones) + k * 4
+            for k, GHE in enumerate(self.GHEs):
+                GHE.row_index = 2 * len(self.zones) + k * 4
             for k, ISHX in enumerate(self.ISHXs):
-                ISHX.row_index = 2 * len(self.zones) + len(self.GHXs) * 4 + k * 2
+                ISHX.row_index = 2 * len(self.zones) + len(self.GHEs) * 4 + k * 2
 
         else:
             raise ValueError(f"Invalid configuration type: {configuration}")
@@ -864,8 +864,8 @@ class GHEHPSystem:
             zone.P_zone_clg = np.zeros(n_timesteps)
             zone.P_zone_cp = np.zeros(n_timesteps)
         self.P_cl_cp = np.zeros(n_timesteps)
-        for GHX in self.GHXs:
-            GHX.P_ghe_cp = np.zeros(n_timesteps)
+        for GHE in self.GHEs:
+            GHE.P_ghe_cp = np.zeros(n_timesteps)
         for ISHX in self.ISHXs:
             ISHX.P_ishx_cp = np.zeros(n_timesteps)
 
@@ -971,20 +971,20 @@ class GHEHPSystem:
 
             # Generating matrix for ground heat exchangers
             m_loop_ghe = 0
-            nbh_total = sum(GHX.nbh for GHX in self.GHXs)
-            GHX_inlet_index = self.GHXs[0].row_index
-            for j, GHX in enumerate(self.GHXs):
-                q_ghe = GHX.q_ghe[:i]  # <--- FIXED: slice of all past values, it is an array
-                two_pi_k = 2 * np.pi * GHX.soil.k
-                GHX.nbh = len(GHX.gFunction.bore_locations)
-                split_ratio = GHX.nbh / nbh_total
+            nbh_total = sum(GHE.nbh for GHE in self.GHEs)
+            GHE_inlet_index = self.GHEs[0].row_index
+            for j, GHE in enumerate(self.GHEs):
+                q_ghe = GHE.q_ghe[:i]  # <--- FIXED: slice of all past values, it is an array
+                two_pi_k = 2 * np.pi * GHE.soil.k
+                GHE.nbh = len(GHE.gFunction.bore_locations)
+                split_ratio = GHE.nbh / nbh_total
                 mass_flow_ghe = m_loop * split_ratio
-                c_n = GHX.c_n  # this is array, while using this in matrix we pick c_n[i], a single float number
-                H_n_ghe = GHX.compute_history_term(i, time_array, ts, two_pi_k, GHX.g, tg, GHX.H_n_ghe,
-                                                   GHX.total_values_ghe, q_ghe)
+                c_n = GHE.c_n  # this is array, while using this in matrix we pick c_n[i], a single float number
+                H_n_ghe = GHE.compute_history_term(i, time_array, ts, two_pi_k, GHE.g, tg, GHE.H_n_ghe,
+                                                   GHE.total_values_ghe, q_ghe)
                 m_loop_ghe += mass_flow_ghe
 
-                rows, rhs_values = GHX.generate_GHX_matrix_row(matrix_size, c_n, i, GHX_inlet_index, mass_flow_ghe, cp,
+                rows, rhs_values = GHE.generate_GHE_matrix_row(matrix_size, c_n, i, GHE_inlet_index, mass_flow_ghe, cp,
                                                                m_loop_ghe, H_n_ghe, m_loop, configuration)
 
                 for row, rhs in zip(rows, rhs_values):
@@ -1015,11 +1015,11 @@ class GHEHPSystem:
                 for zone in self.zones:
                     zone.t_eft[i] = X[zone.row_index]
 
-                for GHX in self.GHXs:
-                    GHX.t_eft[i] = X[GHX.row_index]
-                    GHX.t_mft[i] = X[GHX.row_index + 1]
-                    GHX.q_ghe[i] = X[GHX.row_index + 2]
-                    GHX.t_exft[i] = X[GHX.row_index + 3]
+                for GHE in self.GHEs:
+                    GHE.t_eft[i] = X[GHE.row_index]
+                    GHE.t_mft[i] = X[GHE.row_index + 1]
+                    GHE.q_ghe[i] = X[GHE.row_index + 2]
+                    GHE.t_exft[i] = X[GHE.row_index + 3]
 
                 for ISHX in self.ISHXs:
                     ISHX.t_n_eft[i] = X[ISHX.row_index]
@@ -1033,15 +1033,15 @@ class GHEHPSystem:
                     zone.t_exft[i] = X[zone.row_index + 1]
                     zone.t_merging_node[i] = X[zone.downstream_device.row_index]
 
-                for GHX in self.GHXs:
-                    GHX.t_eft[i] = X[GHX_inlet_index]
-                    GHX.t_mft[i] = X[GHX.row_index + 1]
-                    GHX.q_ghe[i] = X[GHX.row_index + 2]
-                    GHX.t_exft[i] = X[GHX.row_index + 3]
-                    if GHX.downstream_device.type == "GHX":
-                        GHX.t_merging_node[i] = X[GHX.downstream_device.row_index]
+                for GHE in self.GHEs:
+                    GHE.t_eft[i] = X[GHE_inlet_index]
+                    GHE.t_mft[i] = X[GHE.row_index + 1]
+                    GHE.q_ghe[i] = X[GHE.row_index + 2]
+                    GHE.t_exft[i] = X[GHE.row_index + 3]
+                    if GHE.downstream_device.type == "GHE":
+                        GHE.t_merging_node[i] = X[GHE.downstream_device.row_index]
                     else:
-                        GHX.t_merging_node[i] = X[GHX.downstream_device.inlet_index]
+                        GHE.t_merging_node[i] = X[GHE.downstream_device.inlet_index]
 
                 for ISHX in self.ISHXs:
                     ISHX.t_n_exft[i] = X[ISHX.row_index]
@@ -1060,9 +1060,9 @@ class GHEHPSystem:
                                                                                  self.beta_HP_delta_P, delta_P_HP)
 
             # ground heat exchanger energy consumption
-            for GHX in self.GHXs:
-                nbh = len(GHX.gFunction.bore_locations)
-                length_ghe = 2 * GHX.height
+            for GHE in self.GHEs:
+                nbh = len(GHE.gFunction.bore_locations)
+                length_ghe = 2 * GHE.height
                 split_ratio = nbh / nbh_total
                 mass_flow_ghe = m_loop * split_ratio
                 pipe_dia = 2 * pipe.r_in
@@ -1073,7 +1073,7 @@ class GHEHPSystem:
                 B = (37530/Re_n)**16
                 friction_factor = 8 * ((8/Re_n)**12 + (A + B)**-1.5)**(1/12)
                 delta_P_GHE = friction_factor * length_ghe * density * velocity**2 / (2 * pipe_dia)
-                GHX.P_ghe_cp[i] = mass_flow_ghe / (density * self.GHE_cp_efficiency) * delta_P_GHE * self.beta_GHE_delta_P
+                GHE.P_ghe_cp[i] = mass_flow_ghe / (density * self.GHE_cp_efficiency) * delta_P_GHE * self.beta_GHE_delta_P
 
         # central loop energy consumption
         m_ref_loop = max(m_loop_array)
@@ -1111,11 +1111,11 @@ class GHEHPSystem:
                 for zone in self.zones:
                     row.append(zone.t_eft[i])
 
-                for GHX in self.GHXs:
-                    row.append(GHX.t_eft[i])
-                    row.append(GHX.t_mft[i])
-                    row.append(GHX.q_ghe[i])
-                    row.append(GHX.t_exft[i])
+                for GHE in self.GHEs:
+                    row.append(GHE.t_eft[i])
+                    row.append(GHE.t_mft[i])
+                    row.append(GHE.q_ghe[i])
+                    row.append(GHE.t_exft[i])
 
                 for ISHX in self.ISHXs:
                     row.append(ISHX.t_n_eft[i])
@@ -1130,12 +1130,12 @@ class GHEHPSystem:
             for j, zone in enumerate(self.zones):
                 column_names.append(f"Zone{j}_EFT[C]")
 
-            for j, GHX in enumerate(self.GHXs):
+            for j, GHE in enumerate(self.GHEs):
                 column_names += [
-                    f"GHX{j}_EFT[C]",
-                    f"GHX{j}_MFT[C]",
-                    f"GHX{j}_q_ghe[W/m]",
-                    f"GHX{j}_ExFT[C]"
+                    f"GHE{j}_EFT[C]",
+                    f"GHE{j}_MFT[C]",
+                    f"GHE{j}_q_ghe[W/m]",
+                    f"GHE{j}_ExFT[C]"
                 ]
 
             for j, ISHX in enumerate(self.ISHXs):
@@ -1156,12 +1156,12 @@ class GHEHPSystem:
                     row.append(zone.t_exft[i])
                     row.append(zone.t_merging_node[i])
 
-                for GHX in self.GHXs:
-                    row.append(GHX.t_eft[i])
-                    row.append(GHX.t_mft[i])
-                    row.append(GHX.q_ghe[i])
-                    row.append(GHX.t_exft[i])
-                    row.append(GHX.t_merging_node[i])
+                for GHE in self.GHEs:
+                    row.append(GHE.t_eft[i])
+                    row.append(GHE.t_mft[i])
+                    row.append(GHE.q_ghe[i])
+                    row.append(GHE.t_exft[i])
+                    row.append(GHE.t_merging_node[i])
 
                 for ISHX in self.ISHXs:
                     row.append(ISHX.t_n_exft[i])
@@ -1177,13 +1177,13 @@ class GHEHPSystem:
                 column_names.append(f"Zone{j}_ExFT[C]")
                 column_names.append(f"Zone{j}_CNT[C]")
 
-            for j, GHX in enumerate(self.GHXs):
+            for j, GHE in enumerate(self.GHEs):
                 column_names += [
-                    f"GHX{j}_EFT[C]",
-                    f"GHX{j}_MFT[C]",
-                    f"GHX{j}_q_ghe[W/m]",
-                    f"GHX{j}_ExFT[C]",
-                    f"GHX{j}_CNT[C]"
+                    f"GHE{j}_EFT[C]",
+                    f"GHE{j}_MFT[C]",
+                    f"GHE{j}_q_ghe[W/m]",
+                    f"GHE{j}_ExFT[C]",
+                    f"GHE{j}_CNT[C]"
                 ]
 
             for j, ISHX in enumerate(self.ISHXs):
@@ -1219,8 +1219,8 @@ class GHEHPSystem:
 
             row.append(self.P_cl_cp[i])
 
-            for GHX in self.GHXs:
-                row.append(GHX.P_ghe_cp[i])
+            for GHE in self.GHEs:
+                row.append(GHE.P_ghe_cp[i])
 
             for ISHX in self.ISHXs:
                 row.append(ISHX.P_ishx_cp[i])
@@ -1237,8 +1237,8 @@ class GHEHPSystem:
 
         column_names.append(f"central_loop_P_cp")
 
-        for j, GHX in enumerate(self.GHXs):
-            column_names.append(f"GHX{j}_P_cp")
+        for j, GHE in enumerate(self.GHEs):
+            column_names.append(f"GHE{j}_P_cp")
 
         for j, ISHX in enumerate(self.ISHXs):
             column_names.append(f"ISHX{j}_P_cp")
@@ -1282,12 +1282,12 @@ class GHEHPSystem:
                 zone = FindItemByID(zoneID, self.zones)
                 building.zones.append(zone)
 
-        for GHX in self.GHXs:
-            GHX.input = FindItemByID(GHX.inlet_nodeID, self.nodes)
-            GHX.input.output = GHX
+        for GHE in self.GHEs:
+            GHE.input = FindItemByID(GHE.inlet_nodeID, self.nodes)
+            GHE.input.output = GHE
             if self.configuration == "2-pipe":
-                GHX.output = FindItemByID(GHX.outlet_nodeID, self.nodes)
-                GHX.output.input = GHX
+                GHE.output = FindItemByID(GHE.outlet_nodeID, self.nodes)
+                GHE.output.input = GHE
 
         for ISHX in self.ISHXs:
             ISHX.input = FindItemByID(ISHX.node_network_inlet_ID, self.nodes)
@@ -1306,12 +1306,12 @@ class GHEHPSystem:
                 zone = FindItemByID(zoneID, self.zones)
                 ISHX.zones.append(zone)
 
-        # finding upstream and downstream device for GHX
+        # finding upstream and downstream device for GHE
 
-        for GHX in self.GHXs:
+        for GHE in self.GHEs:
 
             # find the first upstream branching node
-            device = GHX.input
+            device = GHE.input
             while device.type != "branching":
                 device = device.input
 
@@ -1323,15 +1323,15 @@ class GHEHPSystem:
             # find the upstream device
             if device.type == "branching":
                 device = device.diversion
-                while device.type != "GHX" and device.type != "zone":
+                while device.type != "GHE" and device.type != "zone":
                     device = device.output
             else:
                 device = device.merger
-                while device.type != "GHX" and device.type != "zone":
+                while device.type != "GHE" and device.type != "zone":
                     device = device.input
 
-            GHX.upstream_device = device
-            device.downstream_device = GHX
+            GHE.upstream_device = device
+            device.downstream_device = GHE
 
         # finding upstream and downstream device for zones
 
@@ -1349,11 +1349,11 @@ class GHEHPSystem:
             # find the upstream device
             if device.type == "branching":
                 device = device.diversion
-                while device.type != "GHX" and device.type != "zone" and device.type != "ISHX":
+                while device.type != "GHE" and device.type != "zone" and device.type != "ISHX":
                     device = device.output
             elif device.type == "merging":
                 device = device.merger
-                while device.type != "GHX":
+                while device.type != "GHE":
                     device = device.input
 
             else:
@@ -1377,11 +1377,11 @@ class GHEHPSystem:
             # finding upstream device
             if device.type == "branching":
                 device = device.diversion
-                while device.type != "GHX" and device.type != "zone":
+                while device.type != "GHE" and device.type != "zone":
                     device = device.output
             else:
                 device = device.merger
-            while device.type != "GHX" and device.type != "zone":
+            while device.type != "GHE" and device.type != "zone":
                 device = device.input
 
             ISHX.upstream_device = device
@@ -1429,7 +1429,7 @@ class GHEHPSystem:
         pipes = self.pipes
         nodes = self.nodes
         zones = self.zones
-        GHXs = self.GHXs
+        GHEs = self.GHEs
         ISHXs = self.ISHXs
 
         # Drawing zones
@@ -1444,16 +1444,16 @@ class GHEHPSystem:
             glVertex2f(zone.input.x, zone.input.y - 2)
             glEnd()
 
-        # Drawing GHXs
+        # Drawing GHEs
         glLineWidth(5)
         glColor3f(1, 1, 1)
 
-        for GHX in GHXs:
+        for GHE in GHEs:
             glBegin(GL_LINE_LOOP)  # begin drawing connected lines
-            glVertex2f(GHX.input.x, GHX.input.y + 2)
-            glVertex2f(GHX.input.x - 10, GHX.input.y + 2)
-            glVertex2f(GHX.input.x - 10, GHX.input.y - 2)
-            glVertex2f(GHX.input.x, GHX.input.y - 2)
+            glVertex2f(GHE.input.x, GHE.input.y + 2)
+            glVertex2f(GHE.input.x - 10, GHE.input.y + 2)
+            glVertex2f(GHE.input.x - 10, GHE.input.y - 2)
+            glVertex2f(GHE.input.x, GHE.input.y - 2)
             glEnd()
 
         # Drawing ISHXs

@@ -26,13 +26,12 @@ Zone,      water_htg,        None,     b3z2,   n30,               n31,          
 
 
 #  keyword, id,    inlet_nodeID,  outlet_nodeID,   n_rows, n_cols, row_spacing (m), col_spacing (m),  height     m_flow_ghe_design
-GHX,        ghe1,  n36,           n37,             15,     10,     5,               5, 		          100,       50.63
-GHX,        ghe2,  n40,           n41,             10,     8,      5,               5,                100,       27
-GHX,        ghe3,  n44,           n45,             10,     7,      5,               5,                100,       23.63
+GHE,        ghe1,  n36,           n37,             15,     10,     5,               5, 		      100,       50.63
+GHE,        ghe2,  n40,           n41,             10,     8,      5,               5,                100,       27
+GHE,        ghe3,  n44,           n45,             10,     7,      5,               5,                100,       23.63
 
 #keyword,   name,            id,      node_network_inlet_ID,   node_network_outlet_ID,     node_HP_inlet_ID,       node_HP_outlet_ID,    beta_ishx,   effectiveness,     zoneID
 ISHX,       counter_flow,    ishx1,   n14,                     n15,                        n11,                    n10,                   1,           0.8,               b1z1, b1z2
-
 
 
 # nodes data
